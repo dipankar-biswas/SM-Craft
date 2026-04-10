@@ -1,6 +1,6 @@
 "use client";
 
-import { AlignLeft, Search, ShoppingCart } from "lucide-react";
+import { AlignLeft, Menu, Search, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApp } from "../context/AppContext";
 import Link from "next/link";
@@ -12,7 +12,7 @@ import { Suspense } from "react";
 const SearchInput = () => {
   const { search, setSearch } = useApp();
   const router = useRouter();
-  
+
   const onSearch = (e) => {
     e.preventDefault();
     if (search.trim()) {
@@ -21,7 +21,10 @@ const SearchInput = () => {
   };
 
   return (
-    <form onSubmit={onSearch} className="flex-1 max-w-xl mx-8 relative hidden lg:block">
+    <form
+      onSubmit={onSearch}
+      className="flex-1 max-w-xl mx-8 relative hidden lg:block"
+    >
       <div className="relative flex items-center w-full">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
           <Search size={20} className="text-gray-400" />
@@ -38,7 +41,7 @@ const SearchInput = () => {
   );
 };
 
-export const Topbar = ({ setIsExpanded, openCart }) => {
+export const Topbar = ({ isExpanded, setIsExpanded, openCart, isMobileExpanded, setIsMobileExpanded }) => {
   const { cart } = useApp();
   const [isSticky, setIsSticky] = useState(false);
 
@@ -53,10 +56,19 @@ export const Topbar = ({ setIsExpanded, openCart }) => {
 
   return (
     <header
-      className={`sticky top-0 z-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 py-4 shadow-sm transition-all duration-300 ${
+      className={`sticky top-0 z-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 py-3 lg:py-4 shadow-sm transition-all duration-300 ${
         isSticky ? "shadow-md" : "shadow-sm"
       }`}
     >
+      <button
+        onClick={() => setIsMobileExpanded(!isMobileExpanded)}
+        className="flex lg:hidden"
+      >
+        <div className="min-w-[24px] flex justify-center">
+          <Menu size={24} />
+        </div>
+      </button>
+
       {/* Left Section */}
       <div className="flex items-center gap-8">
         <Logo />
@@ -71,11 +83,13 @@ export const Topbar = ({ setIsExpanded, openCart }) => {
       </div>
 
       {/* Middle Search Section - Suspense added */}
-      <Suspense fallback={
-        <div className="flex-1 max-w-xl mx-8 relative hidden lg:block">
-          <div className="w-full h-12 bg-gray-100 rounded-full animate-pulse"></div>
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="flex-1 max-w-xl mx-8 relative hidden lg:block">
+            <div className="w-full h-12 bg-gray-100 rounded-full animate-pulse"></div>
+          </div>
+        }
+      >
         <SearchInput />
       </Suspense>
 
@@ -97,7 +111,7 @@ export const Topbar = ({ setIsExpanded, openCart }) => {
         </nav>
 
         <div className="relative cursor-pointer" onClick={openCart}>
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-700 hover:bg-green-200 transition-colors">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-green-100 rounded-full flex items-center justify-center text-green-700 hover:bg-green-200 transition-colors">
             <ShoppingCart size={22} />
           </div>
           <span className="absolute top-0 right-0 bg-white border border-gray-200 text-gray-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full transform translate-x-1/4 -translate-y-1/4 shadow-sm">

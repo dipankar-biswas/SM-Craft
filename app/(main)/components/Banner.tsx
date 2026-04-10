@@ -82,7 +82,7 @@ export const Banner = () => {
         {banners.map((banner) => (
           <SwiperSlide key={banner.id}>
             <div
-              className="relative w-full h-[390px] md:h-[470px]"
+              className="relative w-full h-[300px] sm:h-[390px] md:h-[470px]"
               style={{
                 backgroundImage: `url('${banner.bgImage}')`,
                 backgroundPosition: "right center",
@@ -112,12 +112,12 @@ export const Banner = () => {
       </Swiper>
 
       {/* Custom Navigation Buttons (Optional) */}
-      <button className="banner-button-prv absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/30 transition-all duration-300">
+      <button className="banner-button-prv absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/30 transition-all duration-300">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      <button className="banner-button-nxt absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/30 transition-all duration-300">
+      <button className="banner-button-nxt absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center hover:bg-white/30 transition-all duration-300">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>

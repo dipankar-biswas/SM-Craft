@@ -60,18 +60,19 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
       {isExpanded && (
         <div
           onClick={() => setIsExpanded(false)}
+          // onMouseEnter={() => setIsExpanded(false)}
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 transition-all duration-300 animate-in fade-in"
         />
       )}
       <aside
-        className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-100 flex flex-col py-4 z-40 transition-all duration-300 ${
+        className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-100 flex flex-col py-4 z-40 transition-all duration-300 hidden lg:block ${
           isExpanded ? "w-64" : "w-16"
         }`}
       >
         <div className="px-2">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            // onMouseEnter={() => setIsExpanded(true)}
+            onMouseEnter={() => setIsExpanded(true)}
             // onMouseLeave={() => setIsExpanded(false)}
             className="bg-[#0f4a47] hover:bg-[#0c3937] transition-colors relative flex items-center gap-3 ps-3 pe-2 py-2 w-full rounded-full text-white"
           >

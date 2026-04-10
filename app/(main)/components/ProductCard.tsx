@@ -29,7 +29,7 @@ export const ProductCard = ({ product }) => {
           </span>
         )}
 
-        <div className="relative h-[350px] overflow-hidden bg-[#fafafa]">
+        <div className="relative h-[260px] sm:h-[380px] md:h-[240px] lg:h-[350px] overflow-hidden bg-[#fafafa]">
           <Link href={`/product/${product.id}`} className="absolute inset-0 h-full w-full">
             <img
               src={product.image}
@@ -62,7 +62,7 @@ export const ProductCard = ({ product }) => {
           <div className="mt-0 overflow-hidden transition-all duration-300 mt-4">
             <button 
               onClick={handleAddToCart} 
-              className="rounded bg-[#095059] hover:bg-[#0e6e78] transition-all duration-300 px-7 py-2 text-sm font-semibold text-white"
+              className="rounded bg-[#095059] hover:bg-[#0e6e78] transition-all duration-300 px-4 py-2 text-sm font-semibold text-white"
             >
               Add To Cart
             </button>

@@ -230,10 +230,6 @@ export const Footer = () => {
         </div>
       </div>
 
-      {/* Mobile bottom hint */}
-      <div className="text-center text-[10px] text-stone-400 pt-4 md:hidden">
-        📍 Dr Nowab Ali Tower, Dhaka — Call 01965-666777
-      </div>
     </div>
   );
 };

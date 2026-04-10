@@ -26,7 +26,7 @@ export const Home = async() => {
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {category.products.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
