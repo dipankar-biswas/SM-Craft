@@ -41,7 +41,7 @@ export async function getSizeDetails(sizeId: string): Promise<SizeResponse | nul
   }
 }
 
-export async function createSize(sizeData: SizeData): Promise<SizeResponse> {
+export async function createSizeQuery(sizeData: SizeData): Promise<SizeResponse> {
   try {
     const size = await Size.create(sizeData);
     return JSON.parse(JSON.stringify(size)) as SizeResponse;
@@ -50,7 +50,7 @@ export async function createSize(sizeData: SizeData): Promise<SizeResponse> {
   }
 }
 
-export async function updateSize(sizeId: string, sizeData: Partial<SizeData>): Promise<SizeResponse | null> {
+export async function updateSizeQuery(sizeId: string, sizeData: Partial<SizeData>): Promise<SizeResponse | null> {
   try {
     const size = await Size.findByIdAndUpdate(
       sizeId,
@@ -63,7 +63,7 @@ export async function updateSize(sizeId: string, sizeData: Partial<SizeData>): P
   }
 }
 
-export async function deleteSize(sizeId: string): Promise<boolean> {
+export async function deleteSizeQuery(sizeId: string): Promise<boolean> {
   try {
     const result = await Size.findByIdAndDelete(sizeId);
     return !!result;
@@ -97,7 +97,7 @@ export async function getSizesByNames(sizeNames: string[]): Promise<SizeResponse
   }
 }
 
-export async function toggleSizeStatus(sizeId: string, active: boolean): Promise<SizeResponse | null> {
+export async function toggleSizeStatusQuery(sizeId: string, active: boolean): Promise<SizeResponse | null> {
   try {
     const size = await Size.findByIdAndUpdate(
       sizeId,

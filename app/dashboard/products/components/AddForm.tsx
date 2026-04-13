@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   CheckCircle2,
@@ -14,9 +14,12 @@ import {
   Link2,
   ChevronDown,
   Search,
+  Trash2,
 } from "lucide-react";
 import { Category, Brand, Size, Color, Product } from "../../data/initialData";
 import { useApp } from "../../context/AppContext";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface ProductFormProps {
   products: Product[];
@@ -25,6 +28,32 @@ interface ProductFormProps {
   brands: Brand[];
   sizes: Size[];
   colors: Color[];
+}
+
+interface ApiResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    _id: string;
+    name: string;
+    nameBn: string;
+    price: number;
+    stock: number;
+    category: string;
+    brand: string;
+    sizes: string[];
+    colors: string[];
+    description: string;
+    descriptionBn: string;
+    image: string;
+    multiImages: string[];
+    video: string;
+    slug: string;
+    active: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+  error?: string;
 }
 
 const AddForm: React.FC<ProductFormProps> = ({
@@ -36,53 +65,103 @@ const AddForm: React.FC<ProductFormProps> = ({
   setProducts,
 }) => {
   const { isBn } = useApp();
+  const router = useRouter();
 
-  const [name, setName] = useState("");
-  const [nameBn, setNameBn] = useState("");
+  const [name, setName] = useState<string>("");
+  const [nameBn, setNameBn] = useState<string>("");
   const [price, setPrice] = useState<number>(0);
   const [stock, setStock] = useState<number>(0);
-  const [category, setCategory] = useState("");
-  const [brand, setBrand] = useState("");
+  const [category, setCategory] = useState<string>("");
+  const [brand, setBrand] = useState<string>("");
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [description, setDescription] = useState("");
-  const [descriptionBn, setDescriptionBn] = useState("");
+  const [description, setDescription] = useState<string>("");
+  const [descriptionBn, setDescriptionBn] = useState<string>("");
 
-  const [sizeSearch, setSizeSearch] = useState("");
-  const [colorSearch, setColorSearch] = useState("");
-  const [imagePreview, setImagePreview] = useState("");
+  const [sizeSearch, setSizeSearch] = useState<string>("");
+  const [colorSearch, setColorSearch] = useState<string>("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [multiImages, setMultiImages] = useState<File[]>([]);
   const [multiImagePreviews, setMultiImagePreviews] = useState<string[]>([]);
-  const [videoName, setVideoName] = useState("");
-  const [sizeDropdownOpen, setSizeDropdownOpen] = useState(false);
-  const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoName, setVideoName] = useState<string>("");
+  const [sizeDropdownOpen, setSizeDropdownOpen] = useState<boolean>(false);
+  const [colorDropdownOpen, setColorDropdownOpen] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const onAddProduct = (newProduct: Omit<Product, "id" | "sales">) => {
-    const id = Date.now().toString();
-    setProducts([{ ...newProduct, id, sales: 0 }, ...products]);
-  };
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      multiImagePreviews.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [imagePreview, multiImagePreviews]);
 
   const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(isBn ? "শুধু ইমেজ ফাইল সাপোর্টেড" : "Only image files are supported");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(isBn ? "ইমেজ সাইজ 2MB এর কম হতে হবে" : "Image size must be less than 2MB");
+        return;
+      }
+      setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
     }
   };
 
   const handleMultiImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const urls = Array.from(files).map((file) => URL.createObjectURL(file));
-      setMultiImagePreviews(urls);
-    }
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        toast.error(isBn ? `শুধু ইমেজ ফাইল সাপোর্টেড: ${file.name}` : `Only image files supported: ${file.name}`);
+        return false;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(isBn ? `${file.name} সাইজ 2MB এর কম হতে হবে` : `${file.name} size must be less than 2MB`);
+        return false;
+      }
+      return true;
+    });
+    
+    setMultiImages(validFiles);
+    const urls = validFiles.map((file) => URL.createObjectURL(file));
+    setMultiImagePreviews(urls);
+  };
+
+  const removeMultiImage = (index: number) => {
+    setMultiImages(prev => prev.filter((_, i) => i !== index));
+    setMultiImagePreviews(prev => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('video/')) {
+        toast.error(isBn ? "শুধু ভিডিও ফাইল সাপোর্টেড" : "Only video files are supported");
+        return;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error(isBn ? "ভিডিও সাইজ 50MB এর কম হতে হবে" : "Video size must be less than 50MB");
+        return;
+      }
+      setVideoFile(file);
       setVideoName(file.name);
     }
+  };
+
+  const removeVideo = () => {
+    setVideoFile(null);
+    setVideoName("");
   };
 
   const addTextFormatting = (type: string, target: "en" | "bn") => {
@@ -95,9 +174,9 @@ const AddForm: React.FC<ProductFormProps> = ({
     };
     const [prefix, suffix] = formatChars[type] || ["", ""];
     if (target === "en") {
-      setDescription((prev) => prev + `\n${prefix}New Text${suffix}`);
+      setDescription((prev) => prev + `${prefix}New Text${suffix}`);
     } else {
-      setDescriptionBn((prev) => prev + `\n${prefix}নতুন টেক্সট${suffix}`);
+      setDescriptionBn((prev) => prev + `${prefix}নতুন টেক্সট${suffix}`);
     }
   };
 
@@ -107,7 +186,7 @@ const AddForm: React.FC<ProductFormProps> = ({
   const filteredColors = colors.filter(
     (c) =>
       c.name.toLowerCase().includes(colorSearch.toLowerCase()) ||
-      c.nameBn.includes(colorSearch),
+      (c.nameBn && c.nameBn.includes(colorSearch)),
   );
 
   const toggleSize = (sizeName: string) => {
@@ -118,61 +197,131 @@ const AddForm: React.FC<ProductFormProps> = ({
     );
   };
 
-  const toggleColor = (colorHex: string) => {
+  const toggleColor = (colorId: string) => {
     setSelectedColors((prev) =>
-      prev.includes(colorHex)
-        ? prev.filter((c) => c !== colorHex)
-        : [...prev, colorHex],
+      prev.includes(colorId)
+        ? prev.filter((c) => c !== colorId)
+        : [...prev, colorId],
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!name || !price || !category || !brand) {
-      setError(
-        isBn
-          ? "দয়া করে সমস্ত প্রয়োজনীয় ক্ষেত্রগুলি পূরণ করুন (*)"
-          : "Please fill all required fields (*)",
-      );
+    
+    if (!name.trim()) {
+      setError(isBn ? "পণ্যের নাম দিন" : "Enter product name");
+      return;
+    }
+    
+    if (!price || price <= 0) {
+      setError(isBn ? "সঠিক মূল্য দিন" : "Enter valid price");
+      return;
+    }
+    
+    if (!category) {
+      setError(isBn ? "ক্যাটাগরি নির্বাচন করুন" : "Select category");
+      return;
+    }
+    
+    if (!brand) {
+      setError(isBn ? "ব্র্যান্ড নির্বাচন করুন" : "Select brand");
       return;
     }
 
-    onAddProduct({
-      name,
-      nameBn: nameBn || name,
-      price,
-      stock,
-      category,
-      brand,
-      sizes: selectedSizes,
-      colors: selectedColors,
-      description,
-      descriptionBn: descriptionBn || description,
-      image:
-        imagePreview ||
-        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80",
-      multiImages:
-        multiImagePreviews.length > 0 ? multiImagePreviews : undefined,
-      video: videoName ? `video-${Date.now()}` : undefined,
-      status: "Active",
-    });
-
-    setName("");
-    setNameBn("");
-    setPrice(0);
-    setStock(0);
-    setCategory("");
-    setBrand("");
-    setSelectedSizes([]);
-    setSelectedColors([]);
-    setDescription("");
-    setDescriptionBn("");
-    setImagePreview("");
-    setMultiImagePreviews([]);
-    setVideoName("");
+    setIsLoading(true);
     setError("");
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+    setSuccess(false);
+
+    const formData = new FormData();
+    formData.append("name", name.trim());
+    formData.append("nameBn", nameBn.trim() || name.trim());
+    formData.append("price", price.toString());
+    formData.append("stock", stock.toString());
+    formData.append("category", category);
+    formData.append("brand", brand);
+    formData.append("sizes", JSON.stringify(selectedSizes));
+    formData.append("colors", JSON.stringify(selectedColors));
+    formData.append("description", description);
+    formData.append("descriptionBn", descriptionBn || description);
+    
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
+    
+    multiImages.forEach((file) => {
+      formData.append("multiImages", file);
+    });
+    
+    if (videoFile) {
+      formData.append("video", videoFile);
+    }
+
+    try {
+      const res = await fetch("/api/product", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data: ApiResponse = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || (isBn ? "পণ্য সংরক্ষণ করতে ব্যর্থ" : "Failed to save product"));
+      }
+
+      if (data.success && data.data) {
+        const newProduct: Product = {
+          _id: data.data._id,
+          id: data.data._id,
+          name: data.data.name,
+          nameBn: data.data.nameBn,
+          price: data.data.price,
+          stock: data.data.stock,
+          category: data.data.category,
+          brand: data.data.brand,
+          sizes: data.data.sizes,
+          colors: data.data.colors,
+          description: data.data.description,
+          descriptionBn: data.data.descriptionBn,
+          image: data.data.image,
+          multiImages: data.data.multiImages,
+          video: data.data.video,
+          status: "Active",
+          sales: 0,
+        };
+        
+        setProducts([newProduct, ...products]);
+        toast.success(data.message || (isBn ? "পণ্য সফলভাবে সংরক্ষণ হয়েছে!" : "Product saved successfully!"));
+        
+        // Reset form
+        setName("");
+        setNameBn("");
+        setPrice(0);
+        setStock(0);
+        setCategory("");
+        setBrand("");
+        setSelectedSizes([]);
+        setSelectedColors([]);
+        setDescription("");
+        setDescriptionBn("");
+        setImageFile(null);
+        setImagePreview("");
+        setMultiImages([]);
+        setMultiImagePreviews([]);
+        setVideoFile(null);
+        setVideoName("");
+        setSuccess(true);
+        
+        setTimeout(() => setSuccess(false), 3000);
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error saving product:", error);
+      const errorMessage = error instanceof Error ? error.message : (isBn ? "পণ্য সংরক্ষণ করতে ব্যর্থ" : "Failed to save product");
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -221,7 +370,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm disabled:bg-slate-50"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -232,7 +382,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                   type="text"
                   value={nameBn}
                   onChange={(e) => setNameBn(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm disabled:bg-slate-50"
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -246,7 +397,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                   type="number"
                   value={price || ""}
                   onChange={(e) => setPrice(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm disabled:bg-slate-50"
+                  disabled={isLoading}
                 />
               </div>
               <div>
@@ -257,7 +409,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                   type="number"
                   value={stock || ""}
                   onChange={(e) => setStock(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm disabled:bg-slate-50"
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -270,7 +423,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                 <select
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm disabled:bg-slate-50"
+                  disabled={isLoading}
                 >
                   <option value="">
                     {isBn
@@ -278,7 +432,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                       : "-- Select Brand --"}
                   </option>
                   {brands.map((b) => (
-                    <option key={b.id} value={b.name}>
+                    <option key={b._id || b.id} value={b.name}>
                       {isBn ? b.nameBn || b.name : b.name}
                     </option>
                   ))}
@@ -291,7 +445,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm disabled:bg-slate-50"
+                  disabled={isLoading}
                 >
                   <option value="">
                     {isBn
@@ -299,7 +454,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                       : "-- Select Category --"}
                   </option>
                   {categories.map((c) => (
-                    <option key={c.id} value={c.name}>
+                    <option key={c._id || c.id} value={c.name}>
                       {isBn ? c.nameBn || c.name : c.name}
                     </option>
                   ))}
@@ -317,6 +472,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                   type="button"
                   onClick={() => setSizeDropdownOpen(!sizeDropdownOpen)}
                   className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-left text-sm"
+                  disabled={isLoading}
                 >
                   <span className="truncate text-gray-600">
                     {selectedSizes.length > 0
@@ -330,23 +486,24 @@ const AddForm: React.FC<ProductFormProps> = ({
                 {sizeDropdownOpen && (
                   <div className="absolute z-10 mt-2 w-full bg-white border rounded-xl shadow-lg">
                     <div className="p-2 border-b">
-                      <input
-                        type="text"
-                        placeholder={
-                          isBn ? "সাইজ খুঁজুন..." : "Search sizes..."
-                        }
-                        value={sizeSearch}
-                        onChange={(e) => setSizeSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 rounded-lg"
-                      />
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder={isBn ? "সাইজ খুঁজুন..." : "Search sizes..."}
+                          value={sizeSearch}
+                          onChange={(e) => setSizeSearch(e.target.value)}
+                          className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 rounded-lg"
+                        />
+                      </div>
                     </div>
                     <div className="max-h-48 overflow-y-auto p-2 flex flex-wrap gap-1.5">
                       {filteredSizes.map((size) => (
                         <button
-                          key={size.id}
+                          key={size._id || size.id}
                           type="button"
                           onClick={() => toggleSize(size.name)}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border ${selectedSizes.includes(size.name) ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-gray-200 hover:bg-gray-50"}`}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${selectedSizes.includes(size.name) ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-gray-200 hover:bg-gray-50"}`}
                         >
                           {size.name}
                         </button>
@@ -364,6 +521,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                   type="button"
                   onClick={() => setColorDropdownOpen(!colorDropdownOpen)}
                   className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-left text-sm"
+                  disabled={isLoading}
                 >
                   <span className="truncate text-gray-600">
                     {selectedColors.length > 0
@@ -377,21 +535,24 @@ const AddForm: React.FC<ProductFormProps> = ({
                 {colorDropdownOpen && (
                   <div className="absolute z-10 mt-2 w-full bg-white border rounded-xl shadow-lg">
                     <div className="p-2 border-b">
-                      <input
-                        type="text"
-                        placeholder={isBn ? "রং খুঁজুন..." : "Search colors..."}
-                        value={colorSearch}
-                        onChange={(e) => setColorSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 rounded-lg"
-                      />
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder={isBn ? "রং খুঁজুন..." : "Search colors..."}
+                          value={colorSearch}
+                          onChange={(e) => setColorSearch(e.target.value)}
+                          className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 rounded-lg"
+                        />
+                      </div>
                     </div>
                     <div className="max-h-48 overflow-y-auto p-2 flex flex-wrap gap-1.5">
                       {filteredColors.map((col) => (
                         <button
-                          key={col.id}
+                          key={col._id || col.id}
                           type="button"
                           onClick={() => toggleColor(col.hex)}
-                          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border ${selectedColors.includes(col.hex) ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-gray-200 hover:bg-gray-50"}`}
+                          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${selectedColors.includes(col.hex) ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-gray-200 hover:bg-gray-50"}`}
                         >
                           <span
                             className="w-3 h-3 rounded-full border"
@@ -417,21 +578,21 @@ const AddForm: React.FC<ProductFormProps> = ({
                     <button
                       type="button"
                       onClick={() => addTextFormatting("bold", "en")}
-                      className="p-1 hover:bg-white rounded"
+                      className="p-1 hover:bg-white rounded transition-colors"
                     >
                       <Bold className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => addTextFormatting("italic", "en")}
-                      className="p-1 hover:bg-white rounded"
+                      className="p-1 hover:bg-white rounded transition-colors"
                     >
                       <Italic className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => addTextFormatting("list", "en")}
-                      className="p-1 hover:bg-white rounded"
+                      className="p-1 hover:bg-white rounded transition-colors"
                     >
                       <List className="w-4 h-4" />
                     </button>
@@ -441,6 +602,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="w-full p-3 bg-white border-0 focus:ring-0 focus:outline-none text-sm resize-none"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -453,21 +615,21 @@ const AddForm: React.FC<ProductFormProps> = ({
                     <button
                       type="button"
                       onClick={() => addTextFormatting("bold", "bn")}
-                      className="p-1 hover:bg-white rounded"
+                      className="p-1 hover:bg-white rounded transition-colors"
                     >
                       <Bold className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => addTextFormatting("italic", "bn")}
-                      className="p-1 hover:bg-white rounded"
+                      className="p-1 hover:bg-white rounded transition-colors"
                     >
                       <Italic className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => addTextFormatting("list", "bn")}
-                      className="p-1 hover:bg-white rounded"
+                      className="p-1 hover:bg-white rounded transition-colors"
                     >
                       <List className="w-4 h-4" />
                     </button>
@@ -477,6 +639,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                     value={descriptionBn}
                     onChange={(e) => setDescriptionBn(e.target.value)}
                     className="w-full p-3 bg-white border-0 focus:ring-0 focus:outline-none text-sm resize-none"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -487,15 +650,27 @@ const AddForm: React.FC<ProductFormProps> = ({
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                {isBn ? "প্রধান ছবি" : "Main Image"}
+                {isBn ? "প্রধান ছবি *" : "Main Image *"}
               </label>
-              <div className="rounded-xl border border-dashed border-gray-300 px-6 py-6 text-center">
+              <div className="rounded-xl border-2 border-dashed border-gray-300 p-6 text-center hover:border-indigo-400 transition-colors">
                 {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="h-28 w-28 object-cover rounded-xl mx-auto"
-                  />
+                  <div className="relative inline-block">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="h-28 w-28 object-cover rounded-xl mx-auto"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview("");
+                      }}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 ) : (
                   <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
                 )}
@@ -507,6 +682,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                       accept="image/*"
                       onChange={handleMainImageChange}
                       className="sr-only"
+                      disabled={isLoading}
                     />
                   </label>
                 </div>
@@ -517,15 +693,24 @@ const AddForm: React.FC<ProductFormProps> = ({
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 {isBn ? "একাধিক ছবি" : "Multiple Images"}
               </label>
-              <div className="rounded-xl border border-dashed border-gray-300 px-6 py-6 text-center">
+              <div className="rounded-xl border-2 border-dashed border-gray-300 p-6 text-center hover:border-indigo-400 transition-colors">
                 {multiImagePreviews.length > 0 && (
                   <div className="flex flex-wrap gap-2 justify-center mb-4">
                     {multiImagePreviews.map((url, idx) => (
-                      <img
-                        key={idx}
-                        src={url}
-                        className="h-14 w-14 object-cover rounded-lg"
-                      />
+                      <div key={idx} className="relative">
+                        <img
+                          src={url}
+                          alt={`Preview ${idx + 1}`}
+                          className="h-14 w-14 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeMultiImage(idx)}
+                          className="absolute -top-2 -right-2 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -539,6 +724,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                     accept="image/*"
                     onChange={handleMultiImagesChange}
                     className="sr-only"
+                    disabled={isLoading}
                   />
                 </label>
               </div>
@@ -548,10 +734,18 @@ const AddForm: React.FC<ProductFormProps> = ({
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                 {isBn ? "ভিডিও" : "Video"}
               </label>
-              <div className="rounded-xl border border-dashed border-gray-300 px-6 py-6 text-center">
+              <div className="rounded-xl border-2 border-dashed border-gray-300 p-6 text-center hover:border-indigo-400 transition-colors">
                 {videoName && (
-                  <div className="text-xs text-indigo-600 mb-3">
-                    {videoName}
+                  <div className="flex items-center justify-between gap-2 mb-3 px-3 py-2 bg-indigo-50 rounded-lg">
+                    <Video className="w-4 h-4 text-indigo-600" />
+                    <span className="text-xs text-indigo-600 flex-1 truncate">{videoName}</span>
+                    <button
+                      type="button"
+                      onClick={removeVideo}
+                      className="p-0.5 text-red-500 hover:text-red-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
                 )}
                 <label className="cursor-pointer bg-white font-semibold text-indigo-600 hover:text-indigo-500">
@@ -563,6 +757,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                     accept="video/*"
                     onChange={handleVideoChange}
                     className="sr-only"
+                    disabled={isLoading}
                   />
                 </label>
               </div>
@@ -570,12 +765,42 @@ const AddForm: React.FC<ProductFormProps> = ({
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setName("");
+              setNameBn("");
+              setPrice(0);
+              setStock(0);
+              setCategory("");
+              setBrand("");
+              setSelectedSizes([]);
+              setSelectedColors([]);
+              setDescription("");
+              setDescriptionBn("");
+              setImageFile(null);
+              setImagePreview("");
+              setMultiImages([]);
+              setMultiImagePreviews([]);
+              setVideoFile(null);
+              setVideoName("");
+            }}
+            className="px-6 py-3 bg-gray-100 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-200 transition-all"
+            disabled={isLoading}
+          >
+            {isBn ? "রিসেট" : "Reset"}
+          </button>
           <button
             type="submit"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-500/25 hover:opacity-95 transition-all"
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-500/25 hover:opacity-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="w-4 h-4" />
+            {isLoading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
             {isBn ? "পণ্য প্রকাশ করুন" : "Publish Product"}
           </button>
         </div>

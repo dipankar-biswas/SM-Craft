@@ -1,8 +1,12 @@
+import { getAllBrands } from "@/queries/brands";
 import { PageSet } from "./PageSet";
 
-const BrandPage = ({}) => {
+const BrandPage = async() => {
+
+  const brandsResponse = await getAllBrands();
+
   return (
-    <PageSet />
+    <PageSet brandsData={brandsResponse} />
   );
 };
 

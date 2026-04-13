@@ -1,8 +1,10 @@
-'use client';
-import React, { useState } from 'react';
-import { Trash2, Search, Ruler } from 'lucide-react';
-import { Size } from '../../data/initialData';
-import { useApp } from '../../context/AppContext';
+"use client";
+import React, { useState } from "react";
+import { Trash2, Search, Ruler } from "lucide-react";
+import { Size } from "../../data/initialData";
+import { useApp } from "../../context/AppContext";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface SizeListProps {
   sizes: Size[];
@@ -12,25 +14,58 @@ interface SizeListProps {
 const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
   const { isBn } = useApp();
 
-  const [search, setSearch] = useState('');
+  const router = useRouter();
+
+  const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const filteredSizes = sizes.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
+    s.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   const totalPages = Math.ceil(filteredSizes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentSizes = filteredSizes.slice(startIndex, startIndex + itemsPerPage);
+  const currentSizes = filteredSizes.slice(
+    startIndex,
+    startIndex + itemsPerPage,
+  );
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
     setCurrentPage(1);
   };
 
-  const onDeleteSize = (id: string) => {
-    setSizes(sizes.filter((s) => s.id !== id));
+  // const onDeleteSize = (id: string) => {
+  //   setSizes(sizes.filter((s) => s.id !== id));
+  // };
+
+  const onDeleteSize = async (id: string) => {
+    try {
+      // Confirm before delete
+      const confirmDelete = confirm(
+        isBn
+          ? "আপনি কি এই সাইজটি ডিলিট করতে চান?"
+          : "Are you sure you want to delete this size?",
+      );
+
+      if (!confirmDelete) return;
+
+      const res = await fetch("/api/size", {
+        method: "DELETE",
+        body: JSON.stringify({ id: id }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save brand");
+      const data = await res.json();
+
+      setSizes(sizes.filter((s) => s.id !== id));
+
+      toast.success("Brand deleted successfully!");
+      router.refresh();
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -41,7 +76,7 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
             <Ruler className="w-5 h-5" />
           </div>
           <h2 className="text-lg font-bold text-slate-800">
-            {isBn ? 'সাইজ ম্যানেজমেন্ট' : 'Sizes Configuration'}
+            {isBn ? "সাইজ ম্যানেজমেন্ট" : "Sizes Configuration"}
           </h2>
         </div>
 
@@ -50,7 +85,7 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
           <div className="flex flex-wrap items-center gap-3 w-full mb-4">
             <div className="flex items-center gap-2">
               <label className="text-xs text-slate-500 font-medium">
-                {isBn ? 'প্রতি পৃষ্ঠায়:' : 'Show:'}
+                {isBn ? "প্রতি পৃষ্ঠায়:" : "Show:"}
               </label>
               <select
                 value={itemsPerPage}
@@ -73,7 +108,7 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
                 type="text"
                 value={search}
                 onChange={handleSearchChange}
-                placeholder={isBn ? 'সাইজ খুঁজুন...' : 'Search sizes...'}
+                placeholder={isBn ? "সাইজ খুঁজুন..." : "Search sizes..."}
                 className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
               />
             </div>
@@ -84,20 +119,25 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">
-                    {isBn ? 'সাইজের নাম' : 'Size Label'}
+                    {isBn ? "সাইজের নাম" : "Size Label"}
                   </th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-right">
-                    {isBn ? 'অ্যাকশন' : 'Action'}
+                    {isBn ? "অ্যাকশন" : "Action"}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {currentSizes.length > 0 ? (
                   currentSizes.map((size) => (
-                    <tr key={size.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr
+                      key={size.id}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
                       <td className="px-4 py-3">
-                        <span className="font-bold text-slate-700 text-sm">{size.name}</span>
-                       </td>
+                        <span className="font-bold text-slate-700 text-sm">
+                          {size.name}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => onDeleteSize(size.id)}
@@ -105,13 +145,16 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                       </td>
-                     </tr>
+                      </td>
+                    </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={2} className="py-8 text-center text-sm text-slate-500">
-                      {isBn ? 'কোনো সাইজ পাওয়া যায়নি।' : 'No sizes found.'}
+                    <td
+                      colSpan={2}
+                      className="py-8 text-center text-sm text-slate-500"
+                    >
+                      {isBn ? "কোনো সাইজ পাওয়া যায়নি।" : "No sizes found."}
                     </td>
                   </tr>
                 )}
@@ -125,7 +168,11 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
       {totalPages > 1 && (
         <div className="flex justify-between items-center border-t border-slate-100 pt-4 mt-auto">
           <span className="text-xs text-slate-500">
-            {isBn ? 'দেখাচ্ছে' : 'Showing'} {startIndex + 1} {isBn ? 'থেকে' : 'to'} {Math.min(startIndex + itemsPerPage, filteredSizes.length)} {isBn ? 'এর মধ্যে' : 'of'} {filteredSizes.length} {isBn ? 'টি' : 'entries'}
+            {isBn ? "দেখাচ্ছে" : "Showing"} {startIndex + 1}{" "}
+            {isBn ? "থেকে" : "to"}{" "}
+            {Math.min(startIndex + itemsPerPage, filteredSizes.length)}{" "}
+            {isBn ? "এর মধ্যে" : "of"} {filteredSizes.length}{" "}
+            {isBn ? "টি" : "entries"}
           </span>
           <div className="flex gap-1.5">
             <button
@@ -133,7 +180,7 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
               onClick={() => setCurrentPage(currentPage - 1)}
               className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
             >
-              {isBn ? 'পূর্ববর্তী' : 'Prev'}
+              {isBn ? "পূর্ববর্তী" : "Prev"}
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
@@ -141,8 +188,8 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
                 onClick={() => setCurrentPage(page)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                   currentPage === page
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 {page}
@@ -153,7 +200,7 @@ const SizeList: React.FC<SizeListProps> = ({ sizes, setSizes }) => {
               onClick={() => setCurrentPage(currentPage + 1)}
               className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
             >
-              {isBn ? 'পরবর্তী' : 'Next'}
+              {isBn ? "পরবর্তী" : "Next"}
             </button>
           </div>
         </div>

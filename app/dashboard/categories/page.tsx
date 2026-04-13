@@ -1,8 +1,10 @@
+import { getAllCategories } from "@/queries/categories";
 import { PageSet } from "./PageSet";
 
-const CategoriesPage = () => {
+const CategoriesPage = async() => {
+  const categoriesResponse = await getAllCategories();
   return (
-    <PageSet />
+    <PageSet categoriesResponse={categoriesResponse} />
   );
 };
 

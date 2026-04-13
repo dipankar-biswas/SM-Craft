@@ -1,8 +1,10 @@
-// app/model/size-model.ts
+// app/model/color-model.ts
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export interface ISize extends Document {
+export interface IColor extends Document {
   name: string;
+  nameBn: string;
+  hex: string;
   slug: string;
   active: boolean;
   page_set: string[];
@@ -10,13 +12,25 @@ export interface ISize extends Document {
   updated_at: Date;
 }
 
-const sizeSchema = new Schema<ISize>(
+const colorSchema = new Schema<IColor>(
   {
     name: {
       type: String,
       required: true,
       unique: true,
       trim: true,
+    },
+    nameBn: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    hex: {
+      type: String,
+      required: true,
+      unique: true,
+      uppercase: true,
+      match: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/,
     },
     slug: {
       type: String,
@@ -43,7 +57,7 @@ const sizeSchema = new Schema<ISize>(
 );
 
 // Create index for better search performance
-sizeSchema.index({ name: 1, slug: 1, hex: 1 });
+colorSchema.index({ name: 1, slug: 1, hex: 1 });
 
-export const Size = (mongoose.models.Size as Model<ISize>) || 
-  mongoose.model<ISize>("Size", sizeSchema);
+export const Color = (mongoose.models.Color as Model<IColor>) || 
+  mongoose.model<IColor>("Color", colorSchema);

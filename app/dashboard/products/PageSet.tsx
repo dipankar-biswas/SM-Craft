@@ -23,13 +23,13 @@ interface ProductsViewProps {
   onUpdateProduct: (id: string, updatedFields: Partial<Product>) => void;
 }
 
-export const PageSet: React.FC<ProductsViewProps> = () => {
+export const PageSet: React.FC<ProductsViewProps> = ({ productsResponse, categoriesResponse, brandsResponse, sizesResponse, colorsResponse }) => {
   const { isBn } = useApp();
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [brands, setBrands] = useState<Brand[]>(initialBrands);
-  const [sizes, setSizes] = useState<Size[]>(initialSizes);
-  const [colors, setColors] = useState<Color[]>(initialColors);
+  const [products, setProducts] = useState<Product[]>(productsResponse);
+  const [categories, setCategories] = useState<Category[]>(categoriesResponse);
+  const [brands, setBrands] = useState<Brand[]>(brandsResponse);
+  const [sizes, setSizes] = useState<Size[]>(sizesResponse);
+  const [colors, setColors] = useState<Color[]>(colorsResponse);
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 

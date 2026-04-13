@@ -9,9 +9,9 @@ interface CategoriesViewProps {
   categories?: Category[];
 }
 
-export const PageSet: React.FC<CategoriesViewProps> = () => {
+export const PageSet: React.FC<CategoriesViewProps> = ({ categoriesResponse }) => {
   const { isBn } = useApp();
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [categories, setCategories] = useState<Category[]>(categoriesResponse);
 
   return (
     <div className="space-y-6">

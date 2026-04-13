@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Size, Color, initialSizes, initialColors } from '../data/initialData';
+import { Size, Color, initialColors } from '../data/initialData';
 import AddSizeForm from './components/AddSizeForm';
 import SizeList from './components/SizeList';
 import AddColorForm from './components/AddColorForm';
@@ -12,10 +12,10 @@ interface SizesColorsViewProps {
   colors?: Color[];
 }
 
-export const PageSet: React.FC<SizesColorsViewProps> = () => {
+export const PageSet: React.FC<SizesColorsViewProps> = ({ sizesData, colorsData }) => {
   const { isBn } = useApp();
-  const [sizes, setSizes] = useState<Size[]>(initialSizes);
-  const [colors, setColors] = useState<Color[]>(initialColors);
+  const [sizes, setSizes] = useState<Size[]>(sizesData);
+  const [colors, setColors] = useState<Color[]>(colorsData);
 
   return (
     <div className="space-y-6">

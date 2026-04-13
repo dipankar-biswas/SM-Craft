@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { Toaster, toast } from 'sonner';
 
 export default function App({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -33,6 +34,7 @@ export default function App({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

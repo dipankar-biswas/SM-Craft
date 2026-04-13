@@ -9,9 +9,9 @@ interface BrandsViewProps {
   brands?: Brand[];
 }
 
-export const PageSet: React.FC<BrandsViewProps> = () => {
+export const PageSet: React.FC<BrandsViewProps> = ({ brandsData }) => {
   const { isBn } = useApp();
-  const [brands, setBrands] = useState<Brand[]>(initialBrands);
+  const [brands, setBrands] = useState<Brand[]>(brandsData);
 
   return (
     <div className="space-y-6">

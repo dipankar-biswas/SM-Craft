@@ -3,10 +3,29 @@ import React, { useState } from "react";
 import { Folder, Trash2, Tag, Search, Edit2, Check, X } from "lucide-react";
 import { Category } from "../../data/initialData";
 import { useApp } from "../../context/AppContext";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface CategoryListProps {
   categories: Category[];
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
+}
+
+interface ApiResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    _id: string;
+    name: string;
+    nameBn: string;
+    icon: string;
+    image?: string;
+    slug: string;
+    active: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+  error?: string;
 }
 
 const TableList: React.FC<CategoryListProps> = ({
@@ -14,25 +33,222 @@ const TableList: React.FC<CategoryListProps> = ({
   setCategories,
 }) => {
   const { isBn } = useApp();
+  const router = useRouter();
+
   // Edit states
   const [editId, setEditId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editNameBn, setEditNameBn] = useState("");
+  const [editName, setEditName] = useState<string>("");
+  const [editNameBn, setEditNameBn] = useState<string>("");
+
+  // Loading states
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState<string | null>(null);
 
   // Search & Pagination states
-  const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [search, setSearch] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
-  const onUpdateCategory = (id: string, updatedFields: Partial<Category>) => {
-    setCategories(categories.map((c) => c.id === id ? { ...c, ...updatedFields } : c));
+  const onUpdateCategory = async (
+    id: string,
+    updatedFields: Partial<Category>,
+  ) => {
+    setIsUpdating(id);
+
+    try {
+      const res = await fetch("/api/category", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          ...updatedFields,
+        }),
+      });
+
+      const data: ApiResponse = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          data.error ||
+            (isBn
+              ? "ক্যাটাগরি আপডেট করতে ব্যর্থ"
+              : "Failed to update category"),
+        );
+      }
+
+      if (data.success && data.data) {
+        setCategories(
+          categories.map((c) =>
+            c._id === id || c.id === id
+              ? {
+                  ...c,
+                  name: data.data.name,
+                  nameBn: data.data.nameBn,
+                  icon: data.data.icon,
+                  image: data.data.image,
+                  active: data.data.active,
+                }
+              : c,
+          ),
+        );
+        toast.success(
+          data.message ||
+            (isBn
+              ? "ক্যাটাগরি সফলভাবে আপডেট হয়েছে!"
+              : "Category updated successfully!"),
+        );
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error updating category:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : isBn
+            ? "ক্যাটাগরি আপডেট করতে ব্যর্থ"
+            : "Failed to update category",
+      );
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  const onToggleStatus = async (id: string, currentStatus: boolean) => {
+    setIsTogglingStatus(id);
+
+    try {
+      const res = await fetch("/api/category", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          active: !currentStatus,
+        }),
+      });
+
+      const data: ApiResponse = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          data.error ||
+            (isBn ? "স্ট্যাটাস আপডেট করতে ব্যর্থ" : "Failed to update status"),
+        );
+      }
+
+      if (data.success) {
+        setCategories(
+          categories.map((c) =>
+            c._id === id || c.id === id ? { ...c, active: data.active } : c,
+          ),
+        );
+        toast.success(
+          data.message ||
+            (isBn
+              ? "স্ট্যাটাস সফলভাবে আপডেট হয়েছে!"
+              : "Status updated successfully!"),
+        );
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error toggling status:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : isBn
+            ? "স্ট্যাটাস আপডেট করতে ব্যর্থ"
+            : "Failed to update status",
+      );
+    } finally {
+      setIsTogglingStatus(null);
+    }
+  };
+
+  const onDeleteCategory = async (id: string) => {
+    if (!id) {
+      toast.error(
+        isBn ? "ক্যাটাগরি আইডি পাওয়া যায়নি" : "Category ID not found",
+      );
+      return;
+    }
+
+    // Confirm before delete
+    const confirmDelete = confirm(
+      isBn
+        ? "আপনি কি এই ক্যাটাগরিটি ডিলিট করতে চান?"
+        : "Are you sure you want to delete this category?",
+    );
+
+    if (!confirmDelete) return;
+
+    setIsDeleting(id);
+
+    try {
+      const res = await fetch("/api/category", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: id }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete category");
+      }
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Update local state
+        setCategories(categories.filter((c) => c._id !== id && c.id !== id));
+
+        toast.success(
+          data.message ||
+            (isBn
+              ? "ক্যাটাগরি ডিলিট成功了!"
+              : "Category deleted successfully!"),
+        );
+        router.refresh();
+
+        // Adjust current page if needed
+        const currentCategoryList = filteredCategories.filter(
+          (c) => c._id !== id && c.id !== id,
+        );
+        if (currentCategoryList.length === 0 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        }
+      } else {
+        toast.error(
+          data.error ||
+            (isBn
+              ? "ক্যাটাগরি ডিলিট করতে ব্যর্থ"
+              : "Failed to delete category"),
+        );
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : isBn
+            ? "ক্যাটাগরি ডিলিট করতে ব্যর্থ"
+            : "Failed to delete category",
+      );
+    } finally {
+      setIsDeleting(null);
+    }
   };
 
   // Filter & Pagination logic
   const filteredCategories = categories.filter(
-    (c) =>
+    (c: Category) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.nameBn.toLowerCase().includes(search.toLowerCase()),
+      (c.nameBn && c.nameBn.toLowerCase().includes(search.toLowerCase())),
   );
 
   const totalPages = Math.ceil(filteredCategories.length / itemsPerPage);
@@ -47,19 +263,28 @@ const TableList: React.FC<CategoryListProps> = ({
     setCurrentPage(1);
   };
 
+  const handleItemsPerPageChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
   const handleEdit = (category: Category) => {
-    setEditId(category.id);
+    setEditId(category._id || category.id || null);
     setEditName(category.name);
     setEditNameBn(category.nameBn);
   };
 
-  const handleSaveEdit = (id: string) => {
+  const handleSaveEdit = async (id: string) => {
     if (editName.trim() && editNameBn.trim()) {
-      onUpdateCategory(id, {
+      await onUpdateCategory(id, {
         name: editName.trim(),
         nameBn: editNameBn.trim(),
       });
       setEditId(null);
+    } else {
+      toast.error(isBn ? "নাম দুটি পূরণ করুন" : "Please fill both names");
     }
   };
 
@@ -67,10 +292,6 @@ const TableList: React.FC<CategoryListProps> = ({
     setEditId(null);
     setEditName("");
     setEditNameBn("");
-  };
-
-  const onDeleteCategory = (id: string) => {
-    setCategories(categories.filter((c) => c.id !== id));
   };
 
   return (
@@ -95,10 +316,7 @@ const TableList: React.FC<CategoryListProps> = ({
               </label>
               <select
                 value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
+                onChange={handleItemsPerPageChange}
                 className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value={10}>10</option>
@@ -144,33 +362,50 @@ const TableList: React.FC<CategoryListProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {currentItems.length > 0 ? (
-                currentItems.map((category) => (
+                currentItems.map((category: Category) => (
                   <tr
-                    key={category.id}
+                    key={category._id || category.id}
                     className="hover:bg-slate-50/50 transition-colors group"
                   >
                     <td className="px-4 py-3.5">
-                      {editId === category.id ? (
+                      {editId === (category._id || category.id) ? (
                         <div className="flex flex-col gap-1.5 w-full">
                           <input
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             placeholder="English Name"
-                            className="px-2 py-1 border border-slate-300 rounded text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-2 py-1 border border-slate-300 rounded text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+                            disabled={
+                              isUpdating === (category._id || category.id)
+                            }
                           />
                           <input
                             type="text"
                             value={editNameBn}
                             onChange={(e) => setEditNameBn(e.target.value)}
                             placeholder="বাংলা নাম"
-                            className="px-2 py-1 border border-slate-300 rounded text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-2 py-1 border border-slate-300 rounded text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+                            disabled={
+                              isUpdating === (category._id || category.id)
+                            }
                           />
                         </div>
                       ) : (
                         <div className="flex items-center gap-2.5">
                           <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                            <Folder className="w-4 h-4" />
+                            {category.image && category.image.startsWith("/") ? (
+                              <img
+                                src={category.image}
+                                alt={category.name}
+                                className="w-4 h-4 object-contain"
+                              />
+                            ) : (
+                              (() => {
+                                const Icon = category.icon;
+                                return <Icon className="w-10 h-10" />;
+                              })()
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-bold text-slate-800">
@@ -186,48 +421,69 @@ const TableList: React.FC<CategoryListProps> = ({
                     <td className="px-4 py-3.5">
                       <span className="text-xs bg-slate-100 px-2 py-1 rounded font-medium text-slate-600 flex items-center gap-1 w-fit border border-slate-200">
                         <Tag className="w-3 h-3 text-slate-400" />
-                        {category.itemCount} {isBn ? "টি" : "Items"}
+                        {category.itemCount || 0} {isBn ? "টি" : "Items"}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
                       <button
                         onClick={() =>
-                          onUpdateCategory(category.id, {
-                            status:
-                              category.status === "Inactive"
-                                ? "Active"
-                                : "Inactive",
-                          })
+                          onToggleStatus(
+                            category._id || category.id || "",
+                            category.active !== false,
+                          )
                         }
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                          category.status === "Inactive"
+                        disabled={
+                          isTogglingStatus === (category._id || category.id)
+                        }
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          category.active === false
                             ? "bg-amber-50 text-amber-600 border border-amber-200"
                             : "bg-emerald-50 text-emerald-600 border border-emerald-200"
                         }`}
                       >
-                        {category.status === "Inactive"
-                          ? isBn
-                            ? "নিষ্ক্রিয়"
-                            : "Inactive"
-                          : isBn
-                            ? "সক্রিয়"
-                            : "Active"}
+                        {isTogglingStatus === (category._id || category.id) ? (
+                          <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mx-2" />
+                        ) : category.active === false ? (
+                          isBn ? (
+                            "নিষ্ক্রিয়"
+                          ) : (
+                            "Inactive"
+                          )
+                        ) : isBn ? (
+                          "সক্রিয়"
+                        ) : (
+                          "Active"
+                        )}
                       </button>
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {editId === category.id ? (
+                        {editId === (category._id || category.id) ? (
                           <>
                             <button
-                              onClick={() => handleSaveEdit(category.id)}
-                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                              onClick={() =>
+                                handleSaveEdit(
+                                  category._id || category.id || "",
+                                )
+                              }
+                              disabled={
+                                isUpdating === (category._id || category.id)
+                              }
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50"
                               title="Save"
                             >
-                              <Check className="w-4 h-4" />
+                              {isUpdating === (category._id || category.id) ? (
+                                <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Check className="w-4 h-4" />
+                              )}
                             </button>
                             <button
                               onClick={handleCancelEdit}
-                              className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition-colors"
+                              disabled={
+                                isUpdating === (category._id || category.id)
+                              }
+                              className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition-colors disabled:opacity-50"
                               title="Cancel"
                             >
                               <X className="w-4 h-4" />
@@ -243,11 +499,20 @@ const TableList: React.FC<CategoryListProps> = ({
                           </button>
                         )}
                         <button
-                          onClick={() => onDeleteCategory(category.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-all"
+                          onClick={() =>
+                            onDeleteCategory(category._id || category.id || "")
+                          }
+                          disabled={
+                            isDeleting === (category._id || category.id)
+                          }
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-all disabled:opacity-50"
                           title="Delete category"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {isDeleting === (category._id || category.id) ? (
+                            <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -271,7 +536,7 @@ const TableList: React.FC<CategoryListProps> = ({
       </div>
 
       {/* Pagination Controls */}
-      {filteredCategories.length > 0 && totalPages > 0 && (
+      {filteredCategories.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-auto">
           <p className="text-xs text-slate-500">
             {isBn ? "দেখানো হচ্ছে" : "Showing"}{" "}
@@ -295,12 +560,11 @@ const TableList: React.FC<CategoryListProps> = ({
               disabled={currentPage === 1}
               className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              {isBn ? "পূর্ববর্তী" : "Previous"}
+              {isBn ? "পূর্ববর্তী" : "Prev"}
             </button>
 
             {Array.from({ length: totalPages }, (_, idx) => {
               const pageNumber = idx + 1;
-              // Show limited page numbers for better UX
               if (
                 pageNumber === 1 ||
                 pageNumber === totalPages ||

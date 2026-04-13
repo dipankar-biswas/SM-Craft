@@ -3,29 +3,143 @@ import React, { useState } from 'react';
 import { Trash2, Search, Edit2, Check, X, Palette } from 'lucide-react';
 import { Color } from '../../data/initialData';
 import { useApp } from '../../context/AppContext';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface ColorListProps {
   colors: Color[];
   setColors: React.Dispatch<React.SetStateAction<Color[]>>;
 }
 
+interface ApiResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    _id: string;
+    name: string;
+    nameBn: string;
+    hex: string;
+    slug: string;
+    active: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+  error?: string;
+}
+
 const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
   const { isBn } = useApp();
+  const router = useRouter();
 
   const [editColorId, setEditColorId] = useState<string | null>(null);
-  const [editColorName, setEditColorName] = useState('');
-  const [editColorNameBn, setEditColorNameBn] = useState('');
-  const [editColorHex, setEditColorHex] = useState('');
+  const [editColorName, setEditColorName] = useState<string>('');
+  const [editColorNameBn, setEditColorNameBn] = useState<string>('');
+  const [editColorHex, setEditColorHex] = useState<string>('');
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [search, setSearch] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
-  const onUpdateColor = (id: string, updatedFields: Partial<Color>) => {
-    setColors(colors.map((c) => c.id === id ? { ...c, ...updatedFields } : c));
+  const onUpdateColor = async (id: string, updatedFields: Partial<Color>) => {
+    setIsUpdating(id);
+    
+    try {
+      const res = await fetch("/api/color", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          id, 
+          ...updatedFields 
+        }),
+      });
+
+      const data: ApiResponse = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || (isBn ? "রঙ আপডেট করতে ব্যর্থ" : "Failed to update color"));
+      }
+
+      if (data.success && data.data) {
+        setColors(colors.map((c) => 
+          (c._id === id || c.id === id) 
+            ? { 
+                ...c, 
+                name: data.data.name,
+                nameBn: data.data.nameBn,
+                hex: data.data.hex,
+              } 
+            : c
+        ));
+        toast.success(data.message || (isBn ? "রঙ সফলভাবে আপডেট হয়েছে!" : "Color updated successfully!"));
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Error updating color:", error);
+      toast.error(error instanceof Error ? error.message : (isBn ? "রঙ আপডেট করতে ব্যর্থ" : "Failed to update color"));
+    } finally {
+      setIsUpdating(null);
+    }
   };
 
-  const filteredColors = colors.filter((c) =>
+  const onDeleteColor = async (id: string) => {
+    if (!id) {
+      toast.error(isBn ? 'রঙ আইডি পাওয়া যায়নি' : 'Color ID not found');
+      return;
+    }
+
+    // Confirm before delete
+    const confirmDelete = confirm(
+      isBn ? 'আপনি কি এই রঙটি ডিলিট করতে চান?' : 'Are you sure you want to delete this color?'
+    );
+    
+    if (!confirmDelete) return;
+
+    setIsDeleting(id);
+    
+    try {
+      const res = await fetch("/api/color", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: id }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete color");
+      }
+      
+      const data = await res.json();
+
+      if (data.success) {
+        // Update local state
+        setColors(colors.filter((c) => c._id !== id && c.id !== id));
+        
+        toast.success(data.message || (isBn ? 'রঙ ডিলিট成功了!' : 'Color deleted successfully!'));
+        router.refresh();
+        
+        // Adjust current page if needed
+        const currentColorList = filteredColors.filter((c) => c._id !== id && c.id !== id);
+        if (currentColorList.length === 0 && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        }
+      } else {
+        toast.error(data.error || (isBn ? 'রঙ ডিলিট করতে ব্যর্থ' : 'Failed to delete color'));
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error(error instanceof Error ? error.message : (isBn ? 'রঙ ডিলিট করতে ব্যর্থ' : 'Failed to delete color'));
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const filteredColors = colors.filter((c: Color) =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     (c.nameBn && c.nameBn.includes(search)) ||
     c.hex.toLowerCase().includes(search.toLowerCase())
@@ -40,15 +154,27 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
     setCurrentPage(1);
   };
 
+  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setItemsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
   const startEditColor = (c: Color) => {
-    setEditColorId(c.id);
+    setEditColorId(c._id || c.id || null);
     setEditColorName(c.name);
     setEditColorNameBn(c.nameBn || '');
     setEditColorHex(c.hex);
   };
 
-  const saveEditColor = (id: string) => {
-    onUpdateColor(id, { 
+  const saveEditColor = async (id: string) => {
+    // Validate hex color
+    const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (!hexRegex.test(editColorHex)) {
+      toast.error(isBn ? 'ভুল হেক্স কোড। ফরম্যাট: #RRGGBB' : 'Invalid hex code. Format: #RRGGBB');
+      return;
+    }
+
+    await onUpdateColor(id, { 
       name: editColorName, 
       nameBn: editColorNameBn, 
       hex: editColorHex 
@@ -56,8 +182,11 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
     setEditColorId(null);
   };
 
-  const onDeleteColor = (id: string) => {
-    setColors(colors.filter((c) => c.id !== id));
+  const cancelEdit = () => {
+    setEditColorId(null);
+    setEditColorName('');
+    setEditColorNameBn('');
+    setEditColorHex('');
   };
 
   return (
@@ -81,10 +210,7 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
               </label>
               <select
                 value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
+                onChange={handleItemsPerPageChange}
                 className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 <option value={10}>10</option>
@@ -123,10 +249,10 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {currentColors.length > 0 ? (
-                  currentColors.map((color) => (
-                    <tr key={color.id} className="hover:bg-slate-50/50 transition-colors">
+                  currentColors.map((color: Color) => (
+                    <tr key={color._id || color.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
-                        {editColorId === color.id ? (
+                        {editColorId === (color._id || color.id) ? (
                           <div className="flex flex-col gap-1">
                             <input
                               type="text"
@@ -134,6 +260,7 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
                               onChange={(e) => setEditColorName(e.target.value)}
                               className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                               placeholder="English Name"
+                              disabled={isUpdating === (color._id || color.id)}
                             />
                             <input
                               type="text"
@@ -141,6 +268,7 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
                               onChange={(e) => setEditColorNameBn(e.target.value)}
                               className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                               placeholder="Bangla Name"
+                              disabled={isUpdating === (color._id || color.id)}
                             />
                           </div>
                         ) : (
@@ -163,13 +291,23 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
                         )}
                        </td>
                       <td className="px-4 py-3">
-                        {editColorId === color.id ? (
-                          <input
-                            type="text"
-                            value={editColorHex}
-                            onChange={(e) => setEditColorHex(e.target.value)}
-                            className="w-20 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-mono"
-                          />
+                        {editColorId === (color._id || color.id) ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={editColorHex}
+                              onChange={(e) => setEditColorHex(e.target.value)}
+                              className="w-8 h-8 rounded cursor-pointer border border-slate-200"
+                              disabled={isUpdating === (color._id || color.id)}
+                            />
+                            <input
+                              type="text"
+                              value={editColorHex}
+                              onChange={(e) => setEditColorHex(e.target.value)}
+                              className="w-24 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 uppercase font-mono"
+                              disabled={isUpdating === (color._id || color.id)}
+                            />
+                          </div>
                         ) : (
                           <span className="font-mono text-xs bg-slate-50 px-2 py-1 rounded text-slate-600 border border-slate-100">
                             {color.hex}
@@ -177,17 +315,23 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
                         )}
                        </td>
                       <td className="px-4 py-3 text-right">
-                        {editColorId === color.id ? (
+                        {editColorId === (color._id || color.id) ? (
                           <div className="flex justify-end gap-1">
                             <button
-                              onClick={() => saveEditColor(color.id)}
-                              className="p-1 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                              onClick={() => saveEditColor(color._id || color.id || '')}
+                              disabled={isUpdating === (color._id || color.id)}
+                              className="p-1 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors disabled:opacity-50"
                             >
-                              <Check className="w-4 h-4" />
+                              {isUpdating === (color._id || color.id) ? (
+                                <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Check className="w-4 h-4" />
+                              )}
                             </button>
                             <button
-                              onClick={() => setEditColorId(null)}
-                              className="p-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                              onClick={cancelEdit}
+                              disabled={isUpdating === (color._id || color.id)}
+                              className="p-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors disabled:opacity-50"
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -201,10 +345,15 @@ const ColorList: React.FC<ColorListProps> = ({ colors, setColors }) => {
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => onDeleteColor(color.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                              onClick={() => onDeleteColor(color._id || color.id || '')}
+                              disabled={isDeleting === (color._id || color.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              {isDeleting === (color._id || color.id) ? (
+                                <div className="w-4 h-4 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
                             </button>
                           </div>
                         )}

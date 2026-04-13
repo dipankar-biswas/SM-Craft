@@ -1,22 +1,36 @@
-// app/model/size-model.ts
+// app/model/category-model.ts
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export interface ISize extends Document {
+export interface ICategory extends Document {
   name: string;
+  nameBn: string;
+  icon: string;
+  image?: string;
   slug: string;
   active: boolean;
-  page_set: string[];
   created_at: Date;
   updated_at: Date;
 }
 
-const sizeSchema = new Schema<ISize>(
+const categorySchema = new Schema<ICategory>(
   {
     name: {
       type: String,
       required: true,
       unique: true,
       trim: true,
+    },
+    nameBn: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    icon: {
+      type: String,
+      required: true,
+    },
+    image: {
+      type: String,
     },
     slug: {
       type: String,
@@ -28,11 +42,6 @@ const sizeSchema = new Schema<ISize>(
       type: Boolean,
       default: true,
     },
-    page_set: [{
-      type: String,
-      enum: ["homepage", "product-page", "checkout-page"],
-      default: [],
-    }],
   },
   {
     timestamps: {
@@ -43,7 +52,7 @@ const sizeSchema = new Schema<ISize>(
 );
 
 // Create index for better search performance
-sizeSchema.index({ name: 1, slug: 1, hex: 1 });
+categorySchema.index({ name: 1, slug: 1 });
 
-export const Size = (mongoose.models.Size as Model<ISize>) || 
-  mongoose.model<ISize>("Size", sizeSchema);
+export const Category = (mongoose.models.Category as Model<ICategory>) || 
+  mongoose.model<ICategory>("Category", categorySchema);
