@@ -41,7 +41,13 @@ const SearchInput = () => {
   );
 };
 
-export const Topbar = ({ isExpanded, setIsExpanded, openCart, isMobileExpanded, setIsMobileExpanded }) => {
+export const Topbar = ({
+  isExpanded,
+  setIsExpanded,
+  openCart,
+  isMobileExpanded,
+  setIsMobileExpanded
+}) => {
   const { cart } = useApp();
   const [isSticky, setIsSticky] = useState(false);
 
@@ -53,6 +59,7 @@ export const Topbar = ({ isExpanded, setIsExpanded, openCart, isMobileExpanded, 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
 
   return (
     <header

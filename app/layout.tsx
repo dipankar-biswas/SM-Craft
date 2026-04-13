@@ -1,25 +1,21 @@
 export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "../globals.css";
-import { AppProvider } from "./context/AppContext";
-import LayoutSet from "./layoutset";
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "MegaStore - Your One Stop Shop",
+  title: "Dashboard - Your One Stop Shop",
   description: "Best products at best prices",
 };
 
-export default function RootLayout({children}) {
-  
+export default async function RootLayout({ children }) {
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AppProvider>
-          <LayoutSet>{children}</LayoutSet>
-        </AppProvider>
+        {children}
       </body>
     </html>
   );

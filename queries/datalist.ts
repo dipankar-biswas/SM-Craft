@@ -7,43 +7,81 @@ import {
   User,
   Briefcase,
   Backpack,
+  LucideIcon,
 } from "lucide-react";
+import { ReactElement } from "react";
 
-export async function getCategories() {
-  const categories = [
+// Types
+export interface Countdown {
+  days: number;
+  hours: number;
+  mins: number;
+  secs: number;
+}
+
+export interface Category {
+  name: string;
+  icon: ReactElement;
+  slug: string;
+}
+
+export interface Product {
+  id: number;
+  productCode: string;
+  name: string;
+  category: string;
+  price: number;
+  originalPrice: number;
+  rating: number;
+  reviews: number;
+  image: string;
+  hoverImage: string;
+  isSale?: boolean;
+  discount?: number;
+  isNew?: boolean;
+  countdown?: Countdown;
+}
+
+export interface CategoryWithProducts extends Category {
+  products: Product[];
+}
+
+// Categories Data
+export async function getCategories(): Promise<Category[]> {
+  const categories: Category[] = [
     {
       name: "All Products",
-      icon: <ShoppingBag size={20} className="text-blue-500" />,
+      icon: '<ShoppingBag size={20} className="text-blue-500" />',
       slug: "products",
     },
     {
       name: "Eid Collection 2026",
-      icon: <Store size={20} className="text-purple-500" />,
+      icon: '<Store size={20} className="text-purple-500" />',
       slug: "eid-collection-2026",
     },
     {
       name: "Eid Exclusive 2026",
-      icon: <ImageIcon size={20} className="text-pink-500" />,
+      icon: '<ImageIcon size={20} className="text-pink-500" />',
       slug: "eid-exclusive-2026",
     },
     {
       name: "Katan Panjabi",
-      icon: <Shirt size={20} className="text-blue-400" />,
+      icon: '<Shirt size={20} className="text-blue-400" />',
       slug: "katan-panjabi",
     },
     {
       name: "Premium Koti",
-      icon: <User size={20} className="text-green-500" />,
+      icon: '<User size={20} className="text-green-500" />',
       slug: "premium-koti",
     },
     {
       name: "Embroidery Panjabi",
-      icon: <Briefcase size={20} className="text-yellow-500" />,
+      icon: '<Briefcase size={20} className="text-yellow-500" />',
       slug: "embroidery-panjabi",
     },
     {
       name: "Print Panjabi",
-      icon: <Backpack size={20} className="text-blue-500" />,
+      icon: '<Backpack size={20} className="text-blue-500" />',
       slug: "print-panjabi",
     },
   ];
@@ -51,8 +89,9 @@ export async function getCategories() {
   return categories;
 }
 
-export async function getProducts() {
-  const products = [
+// Products Data
+export async function getProducts(): Promise<Product[]> {
+  const products: Product[] = [
     {
       id: 1,
       productCode: "PRD-001",
@@ -455,7 +494,8 @@ export async function getProducts() {
   return products;
 }
 
-export async function getProductsByCategory(categorySlug) {
+// Get Products by Category
+export async function getProductsByCategory(categorySlug: string): Promise<Product[]> {
   const products = await getProducts();
   const catProducts = products.filter(
     (product) => product.category.toLowerCase() === categorySlug.toLowerCase(),
@@ -463,16 +503,18 @@ export async function getProductsByCategory(categorySlug) {
   return catProducts;
 }
 
-export async function getProductById(productId) {
+// Get Product by ID
+export async function getProductById(productId: number | string): Promise<Product | null> {
   const products = await getProducts();
-  const product = products.find((product) => product.id == productId);
-  return product ? product : null;
+  const product = products.find((product) => product.id == Number(productId));
+  return product || null;
 }
 
-export async function getCategoriesWithProducts() {
+// Get Categories with Products
+export async function getCategoriesWithProducts(): Promise<CategoryWithProducts[]> {
   const categories = await getCategories();
   const products = await getProducts();
-  const categoriesWithProducts = categories.map((category) => {
+  const categoriesWithProducts: CategoryWithProducts[] = categories.map((category) => {
     const catProducts = products.filter(
       (product) =>
         product.category.toLowerCase() === category.slug.toLowerCase(),
@@ -485,7 +527,8 @@ export async function getCategoriesWithProducts() {
   return categoriesWithProducts;
 }
 
-export async function searchProducts(query) {
+// Search Products
+export async function searchProducts(query: string): Promise<Product[]> {
   const products = await getProducts();
   const searchResults = products.filter((product) => {
     return (
