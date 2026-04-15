@@ -10,13 +10,18 @@ import {
   X,
   Store,
   LogOut,
+  ListOrdered,
+  Sliders,
+  PanelTopDashed,
 } from 'lucide-react';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from '../context/AppContext';
 import { signOut } from 'next-auth/react';
+import { useSettings } from '../context/SettingsContext';
 
-export const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen }) => {
+export const Sidebar = ({ user, mobileMenuOpen, setMobileMenuOpen }) => {
+    const { settings, loading } = useSettings();
     const pathname = usePathname();
 
     const { language, setLanguage, isBn } = useApp();
@@ -27,11 +32,16 @@ export const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen }) => {
       { url: 'categories', name: isBn ? 'ক্যাটাগরি' : 'Categories', icon: FolderTree },
       { url: 'brands', name: isBn ? 'ব্র্যান্ড' : 'Brands', icon: Award },
       { url: 'sizes-colors', name: isBn ? 'সাইজ ও রঙ' : 'Sizes & Colors', icon: Ruler },
+      { url: 'orders', name: isBn ? 'অর্ডার' : 'Orders', icon: ListOrdered },
+      { url: 'banners', name: isBn ? 'ব্যানার' : 'Banner', icon: Sliders },
+      { url: 'pages', name: isBn ? 'পৃষ্ঠাগুলি' : 'Pages', icon: PanelTopDashed },
+      { url: 'settings', name: isBn ? 'সেটিংস' : 'Settings', icon: Ruler },
     ];
 
     const handleLogout = () => {
       signOut({ callbackUrl: '/admin/login' });
     }
+    
 
   return (
     <aside
@@ -67,7 +77,7 @@ export const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen }) => {
           <div className="overflow-hidden">
             <p className="text-xs text-slate-400">Signed in as</p>
             <p className="text-sm font-semibold truncate">
-              Store Administrator
+              {user.name || "Store Administrator"}
             </p>
           </div>
         </div>

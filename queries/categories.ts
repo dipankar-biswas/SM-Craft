@@ -29,7 +29,33 @@ export interface CategoryResponse {
 
 // Get all categories
 export async function getAllCategories(): Promise<CategoryResponse[]> {
-  const categories = await Category.find({}).sort({ created_at: -1 }).lean();
+  const categories = await Category.aggregate([
+    {
+      $match: {} // সব ক্যাটাগরি
+    },
+    {
+      $lookup: {
+        from: "products", // আপনার products collection এর নাম
+        localField: "name",
+        foreignField: "category", // product এ categoryId ফিল্ডের নাম
+        as: "products"
+      }
+    },
+    {
+      $addFields: {
+        itemCount: { $size: "$products" }
+      }
+    },
+    {
+      $project: {
+        products: 0 // products array বাদ দিন
+      }
+    },
+    {
+      $sort: { created_at: -1 }
+    }
+  ]);
+  
   return replaceMongoIdInArray(categories) as CategoryResponse[];
 }
 

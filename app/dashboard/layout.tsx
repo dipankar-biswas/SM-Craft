@@ -5,6 +5,9 @@ import "../globals.css";
 import LayoutSet from "./layoutset";
 import { dbConnect } from "@/service/mongo";
 import { AppProvider } from "./context/AppContext";
+import { SettingsProvider } from "./context/SettingsContext";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -14,13 +17,21 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }) {
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/admin/login");
+  }
+  
+
   await dbConnect();
 
   return (
     <html lang="en">
       <body className={inter.className}>
         <AppProvider>
-          <LayoutSet>{children}</LayoutSet>
+          <SettingsProvider>
+            <LayoutSet user={session?.user}>{children}</LayoutSet>
+          </SettingsProvider>
         </AppProvider>
       </body>
     </html>

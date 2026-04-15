@@ -3,9 +3,26 @@
 import { ExternalLink, Menu, Sparkles } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import Link from "next/link";
+import { useSettings } from "../context/SettingsContext";
 
 export const Header = ({ setMobileMenuOpen }) => {
   const { isBn } = useApp();
+  const { settings, loading } = useSettings();
+  
+
+  // if (loading) {
+  //   return (
+  //     <header className="bg-white shadow-sm">
+  //       <div className="container mx-auto px-4 py-4">
+  //         <div className="animate-pulse flex items-center justify-between">
+  //           <div className="h-10 w-32 bg-gray-200 rounded"></div>
+  //           <div className="h-10 w-64 bg-gray-200 rounded"></div>
+  //         </div>
+  //       </div>
+  //     </header>
+  //   );
+  // }
+
   return (
     <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
@@ -24,12 +41,12 @@ export const Header = ({ setMobileMenuOpen }) => {
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="hidden sm:inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-semibold border border-slate-200">
+        {/* <span className="hidden sm:inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-semibold border border-slate-200">
           <Sparkles className="w-3.5 h-3.5 text-indigo-500 fill-indigo-100" />
           {isBn
             ? "নেক্সট.জেএস এবং টেলউইন্ড ভিত্তিক"
             : "Tailwind + Next.js Stack"}
-        </span>
+        </span> */}
 
         {/* Visit Store Button Mock */}
         <Link

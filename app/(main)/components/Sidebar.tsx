@@ -1,58 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Menu,
-  ShoppingBag,
-  Store,
-  Image as ImageIcon,
-  Shirt,
-  User,
-  Briefcase,
-  Backpack,
-  ChevronLeft,
-} from "lucide-react";
+import { Menu, ShoppingBag, Image as ImageIcon, Globe } from "lucide-react";
 import Link from "next/link";
+import Icon from "@/components/Icon";
+import { useApp } from "../context/AppContext";
 
-export const Sidebar = ({ isExpanded, setIsExpanded }) => {
-
-  const categories = [
-    {
-      name: "All Products",
-      icon: <ShoppingBag size={20} className="text-blue-500" />,
-      slug: "products",
-    },
-    {
-      name: "Eid Collection 2026",
-      icon: <Store size={20} className="text-purple-500" />,
-      slug: "eid-collection-2026",
-    },
-    {
-      name: "Eid Exclusive 2026",
-      icon: <ImageIcon size={20} className="text-pink-500" />,
-      slug: "eid-exclusive-2026",
-    },
-    {
-      name: "Katan Panjabi",
-      icon: <Shirt size={20} className="text-blue-400" />,
-      slug: "katan-panjabi",
-    },
-    {
-      name: "Premium Koti",
-      icon: <User size={20} className="text-green-500" />,
-      slug: "premium-koti",
-    },
-    {
-      name: "Embroidery Panjabi",
-      icon: <Briefcase size={20} className="text-yellow-500" />,
-      slug: "embroidery-panjabi",
-    },
-    {
-      name: "Print Panjabi",
-      icon: <Backpack size={20} className="text-blue-500" />,
-      slug: "print-panjabi",
-    },
-  ];
+export const Sidebar = ({ isExpanded, setIsExpanded, categories }) => {
+  const { language, setLanguage, isBn } = useApp();
 
   return (
     <>
@@ -60,92 +15,178 @@ export const Sidebar = ({ isExpanded, setIsExpanded }) => {
       {isExpanded && (
         <div
           onClick={() => setIsExpanded(false)}
-          // onMouseEnter={() => setIsExpanded(false)}
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 transition-all duration-300 animate-in fade-in"
         />
       )}
+
       <aside
-        className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-100 flex flex-col py-4 z-40 transition-all duration-300 hidden lg:block ${
+        className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-100 flex flex-col z-40 transition-all duration-300 hidden lg:flex ${
           isExpanded ? "w-64" : "w-16"
         }`}
       >
-        <div className="px-2">
+        {/* Fixed Header - Top Section */}
+        <div className="flex-shrink-0 px-2 pt-4 pb-3 border-b border-gray-100">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             onMouseEnter={() => setIsExpanded(true)}
-            // onMouseLeave={() => setIsExpanded(false)}
             className="bg-[#0f4a47] hover:bg-[#0c3937] transition-colors relative flex items-center gap-3 ps-3 pe-2 py-2 w-full rounded-full text-white"
           >
-            {/* {isExpanded ? <ChevronLeft size={24} /> : <Menu size={24} />} */}
             <div className="min-w-[24px] flex justify-center">
               <Menu size={24} />
             </div>
             <span
-              className={`text-sm text-white font-medium text-gray-700 whitespace-nowrap transition-all duration-300 ${
+              className={`text-sm text-white font-medium whitespace-nowrap transition-all duration-300 ${
                 isExpanded ? "opacity-100" : "opacity-0 hidden"
               }`}
             >
-              MENU
+              {isBn ? "মেনু" : "Menu"}
             </span>
           </button>
         </div>
 
-        <div className="flex flex-col gap-2 w-full flex-1 overflow-y-auto pt-2 px-2">
-          {categories.map((item) => (
-            <Link              
-              href={`${item.slug === 'products' ? `/${item.slug}` : `/product-category/${item.slug}`}`}
-              key={item.name}
-              className="flex items-center gap-3 ps-3 pe-2 py-2 hover:bg-gray-50 rounded-lg transition-colors w-full"
+        {/* Scrollable Navigation Area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 custom-scrollbar">
+          <nav className="flex flex-col gap-1 w-full">
+            <Link
+              href={`/products`}
+              className="flex items-center gap-3 ps-3 pe-2 py-2.5 hover:bg-gray-50 rounded-lg transition-colors w-full"
             >
               <div className="min-w-[24px] flex justify-center">
-                {item.icon}
+                <ShoppingBag size={20} className="text-blue-500" />
               </div>
               <span
                 className={`text-sm font-medium text-gray-700 whitespace-nowrap transition-all duration-300 ${
                   isExpanded ? "opacity-100" : "opacity-0 hidden"
                 }`}
               >
-                {item.name}
+                {isBn ? "সব পণ্য" : "All Products"}
               </span>
             </Link>
-          ))}
+
+            {/* Categories List */}
+            {categories.map((item) => (
+              <Link
+                href={`${`/product-category/${item.slug}`}`}
+                key={item.name}
+                className="flex items-center gap-3 ps-3 pe-2 py-2.5 hover:bg-gray-50 rounded-lg transition-colors w-full"
+              >
+                <div className="min-w-[24px] flex justify-center">
+                  {item.image && item.image.startsWith("/") ? (
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-5 h-5 object-contain rounded"
+                    />
+                  ) : (
+                    <Icon
+                      name={item.icon}
+                      size={20}
+                      color={item.iconColor || "#3B82F6"}
+                    />
+                  )}
+                </div>
+                <span
+                  className={`text-sm font-medium text-gray-700 whitespace-nowrap transition-all duration-300 ${
+                    isExpanded ? "opacity-100" : "opacity-0 hidden"
+                  }`}
+                >
+                  {isBn ? item.nameBn : item.name}
+                </span>
+              </Link>
+            ))}
+          </nav>
         </div>
 
-        {/* Sidebar Header */}
-        {/* <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-100">
-          <div className="relative flex flex-col items-center justify-center">
-            <div className="flex items-center gap-0.5">
-              <span className="text-black text-2xl font-black tracking-tighter">
-                SM
-              </span>
-              <div className="relative flex items-end mx-1">
-                <span className="text-black text-2xl font-black z-20">A</span>
-                <div className="absolute -left-2 -bottom-1 w-[14px] h-[24px] border-r-[4px] border-b-[4px] border-red-600 rounded-br-full rotate-12 -z-10"></div>
-                <div className="absolute -left-3 -bottom-2 w-[18px] h-[28px] border-r-[3px] border-b-[3px] border-green-500 rounded-br-full rotate-6 -z-20"></div>
-              </div>
-              <span className="text-black text-2xl font-black tracking-tighter">
-                RT
-              </span>
+        {/* Fixed Footer - Bottom Section */}
+        <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              {isExpanded && (
+                <>
+                  <Globe className="w-3.5 h-3.5" />
+                  <span
+                    className={isExpanded ? "opacity-100" : "opacity-0 hidden"}
+                  >
+                    {isBn ? "ভাষা নির্বাচন" : "Language"}
+                  </span>
+                </>
+              )}
             </div>
-            <div className="bg-white px-2 py-0.5 rounded-full shadow-sm text-red-600 font-bold text-[8px] uppercase tracking-[0.2em] -mt-1">
-              Panjabi Shop
-            </div>
+            <span
+              className={`text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 ${!isExpanded && "hidden"}`}
+            >
+              {language.toUpperCase()}
+            </span>
           </div>
 
-          <button
-            onClick={closeSidebar}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          <div
+            className={`grid grid-cols-2 gap-1 p-1 bg-slate-50 rounded-lg border border-slate-100 ${!isExpanded && "hidden"}`}
           >
-            <X size={20} className="text-gray-500" />
-          </button>
-        </div> */}
-        {/* Sidebar Footer (Optional) */}
-        {/* <div className="border-t border-gray-100 pt-4 px-4">
-          <button className="w-full bg-[#0f4a47] text-white py-2.5 rounded-lg hover:bg-[#0c3937] transition-colors text-sm font-medium">
-            Sign In / Sign Up
-          </button>
-        </div> */}
+            <button
+              onClick={() => setLanguage("en")}
+              className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
+                language === "en"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setLanguage("bn")}
+              className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
+                language === "bn"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              বাংলা
+            </button>
+          </div>
+
+          {/* Collapsed mode language indicator */}
+          {!isExpanded && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setLanguage(language === "en" ? "bn" : "en")}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+                title={
+                  language === "en" ? "Switch to বাংলা" : "Switch to English"
+                }
+              >
+                <Globe className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
+
+      {/* Custom Scrollbar Styles - Add to your global CSS or component */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
+        }
+
+        /* Firefox scrollbar */
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #c1c1c1 #f1f1f1;
+        }
+      `}</style>
     </>
   );
 };

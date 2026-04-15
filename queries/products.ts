@@ -1,6 +1,7 @@
 // app/queries/products.ts
 import { Product } from "@/model/product-model";
 import { replaceMongoIdInArray, replaceMongoIdInObject } from "@/lib/convertData";
+import { getCategories } from "./categories";
 
 // Types
 export interface ProductData {
@@ -45,6 +46,18 @@ export interface ProductResponse {
   sales: number;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface CategoryWithProducts {
+  _id: string;
+  name: string;
+  nameBn: string;
+  slug: string;
+  description?: string;
+  descriptionBn?: string;
+  image?: string;
+  active?: boolean;
+  products: ProductResponse[];
 }
 
 // Get all products
@@ -174,5 +187,30 @@ export async function getFeaturedProducts(limit: number = 10): Promise<ProductRe
     return replaceMongoIdInArray(products) as ProductResponse[];
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to get featured products");
+  }
+}
+
+// More efficient version using MongoDB aggregation
+export async function getCategoriesWiseProducts(): Promise<CategoryWithProducts[]> {
+  try {
+    const categories = await getCategories();
+    
+    const categoriesWithProducts = await Promise.all(
+      categories.map(async (category) => {
+        const products = await Product.find({
+          category: { $regex: new RegExp(`^${category.name}$`, 'i') },
+          active: true
+        }).lean();
+        
+        return {
+          ...category,
+          products: replaceMongoIdInArray(products) as ProductResponse[],
+        };
+      })
+    );
+    
+    return categoriesWithProducts;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Failed to get categories wise products");
   }
 }

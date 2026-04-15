@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useApp } from "../context/AppContext";
 
 const CartPage = () => {
-  const { cart, updateQuantity, removeFromCart } = useApp();
+  const { isBn, cart, updateQuantity, removeFromCart } = useApp();
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
   const shipping = subtotal > 100 ? 0 : 5;
+  
 
   return (
     <div className="bg-white py-8">
@@ -43,6 +44,9 @@ const CartPage = () => {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-2 font-semibold text-gray-700">
                       Product
+                    </th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">
+                      {isBn ? 'সাইজ ও রং' : 'Sizes & Color'}
                     </th>
                     <th className="text-left py-3 px-2 font-semibold text-gray-700">
                       Price
@@ -80,7 +84,37 @@ const CartPage = () => {
                           </Link>
                         </div>
                       </td>
-
+                      <td className="p-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex flex-wrap gap-1">
+                            <span className="text-xs text-gray-500">
+                              {isBn ? "সাইজ:" : "Size:"}
+                            </span>
+                            {item.selectedSize ? (
+                                <span
+                                  className="text-xs px-1.5 py-0.5 bg-gray-100 rounded"
+                                >
+                                  {item.selectedSize}
+                                </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">N/A</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className="text-xs text-gray-500">
+                              {isBn ? "রং:" : "Colors:"}
+                            </span>
+                            {item.selectedColor && item.selectedColor.length > 0 ? (
+                                <span
+                                  className="w-3 h-3 rounded-full border border-gray-300 shadow-sm"
+                                  style={{ backgroundColor: item.selectedColor }}
+                                />
+                            ) : (
+                              <span className="text-xs text-gray-400">N/A</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
                       {/* Price */}
                       <td className="py-4 px-2">
                         <span className="font-semibold text-[#095059]">

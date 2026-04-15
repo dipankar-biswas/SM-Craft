@@ -5,6 +5,7 @@ export interface ICategory extends Document {
   name: string;
   nameBn: string;
   icon: string;
+  iconColor?: string;
   image?: string;
   slug: string;
   active: boolean;
@@ -28,6 +29,11 @@ const categorySchema = new Schema<ICategory>(
     icon: {
       type: String,
       required: true,
+    },
+    iconColor: {
+      type: String,
+      default: "#3B82F6",  // ডিফল্ট কালার (ব্লু)
+      trim: true,
     },
     image: {
       type: String,
@@ -53,6 +59,7 @@ const categorySchema = new Schema<ICategory>(
 
 // Create index for better search performance
 categorySchema.index({ name: 1, slug: 1 });
+categorySchema.index({ iconColor: 1 });
 
 export const Category = (mongoose.models.Category as Model<ICategory>) || 
   mongoose.model<ICategory>("Category", categorySchema);

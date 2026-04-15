@@ -5,7 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Toaster, toast } from 'sonner';
 
-export default function App({ children }: { children: React.ReactNode }) {
+export default function App({ children, user }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -20,6 +20,7 @@ export default function App({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar Navigation */}
       <Sidebar 
+        user={user}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
       />

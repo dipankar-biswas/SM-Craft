@@ -10,7 +10,7 @@ import { Suspense } from "react";
 
 // SearchInput আলাদা কম্পোনেন্ট
 const SearchInput = () => {
-  const { search, setSearch } = useApp();
+  const { isBn, search, setSearch } = useApp();
   const router = useRouter();
 
   const onSearch = (e) => {
@@ -34,7 +34,7 @@ const SearchInput = () => {
           onChange={(e) => setSearch(e.target.value)}
           type="text"
           className="w-full bg-white border border-gray-200 text-gray-900 text-sm rounded-full focus:ring-[#0d4750] focus:border-transparent block pl-12 p-3 shadow-sm placeholder-gray-400"
-          placeholder="Search for products"
+          placeholder={isBn ? "পণ্য খুঁজুন" : "Search for products"}
         />
       </div>
     </form>
@@ -42,14 +42,16 @@ const SearchInput = () => {
 };
 
 export const Topbar = ({
+  settings,
   isExpanded,
   setIsExpanded,
   openCart,
   isMobileExpanded,
   setIsMobileExpanded
 }) => {
-  const { cart } = useApp();
+  const { isBn, cart } = useApp();
   const [isSticky, setIsSticky] = useState(false);
+  const logo = settings.logo;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -78,14 +80,14 @@ export const Topbar = ({
 
       {/* Left Section */}
       <div className="flex items-center gap-8">
-        <Logo />
+        <Logo logo={logo} />
 
         <button
           onClick={() => setIsExpanded(true)}
           className="hidden md:flex items-center gap-2 bg-[#0d4750] text-white px-6 py-2.5 rounded-full font-medium hover:bg-[#0a3840] transition-colors whitespace-nowrap ml-4 shadow-sm"
         >
           <AlignLeft size={20} />
-          <span>All Categories</span>
+          <span>{isBn ? "সব বিভাগ" : "All Categories"}</span>
         </button>
       </div>
 
@@ -104,16 +106,16 @@ export const Topbar = ({
       <div className="flex items-center gap-8 text-sm font-medium text-gray-700">
         <nav className="hidden xl:flex items-center gap-6">
           <Link href="/" className="text-[#0d4750] hover:text-[#0d4750]/80">
-            Home
+            {isBn ? "হোম" : "Home"}
           </Link>
           <Link href="/about" className="hover:text-[#0d4750]">
-            About Us
+            {isBn ? "আমাদের সম্পর্কে" : "About Us"}
           </Link>
           <Link href="/contact" className="hover:text-[#0d4750]">
-            Contact Us
+            {isBn ? "যোগাযোগ" : "Contact Us"}
           </Link>
           <Link href="/products" className="hover:text-[#0d4750]">
-            All Products
+            {isBn ? "সব পণ্য" : "All Products"}
           </Link>
         </nav>
 

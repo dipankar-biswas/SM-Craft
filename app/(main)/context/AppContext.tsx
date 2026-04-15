@@ -19,15 +19,30 @@ interface Product {
   discount?: number;
   quantity?: number;
   countdown?: { days: number; hours: number; mins: number; secs: number };
+  // Add these new properties
+  selectedColor?: string;
+  selectedSize?: string;
+  colors?: string[];
+  sizes?: string[];
+  brand?: string;
+  description?: string;
+  nameBn?: string; // Add Bengali name support
 }
 
 // Define cart item type (extends product with quantity)
 interface CartItem extends Product {
   quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
 }
 
 // Define context type
 interface AppContextType {
+  // Language
+  language: 'en' | 'bn';
+  setLanguage: (value: 'en' | 'bn') => void;
+  isBn: boolean;
+
   // Search
   search: string;
   setSearch: (value: string) => void;
@@ -57,6 +72,7 @@ interface AppContextType {
   addToCart: (product: Product) => void;
   removeFromCart: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
+  clearCart: () => void; // Add clearCart function
   cartTotal: number;
   cartCount: number;
   
@@ -71,6 +87,10 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+
+  const [language, setLanguage] = useState<'en' | 'bn'>('en');
+  const isBn = language === 'bn';
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState<string>("");
   const [wishlist, setWishlist] = useState<Product[]>([]);
@@ -110,6 +130,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         prev.map((item) => (item.id === id ? { ...item, quantity } : item))
       );
     }
+  };
+
+  // Clear all items from cart
+  const clearCart = () => {
+    setCart([]);
   };
 
   const addToWishlist = (product: Product) => {
@@ -152,6 +177,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider
       value={{
+        language,
+        setLanguage,
+        isBn,
+
         search,
         setSearch,
         
@@ -177,6 +206,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         addToCart,
         removeFromCart,
         updateQuantity,
+        clearCart, // Add clearCart to the context value
         cartTotal,
         cartCount,
 

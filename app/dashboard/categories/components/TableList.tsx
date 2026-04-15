@@ -1,10 +1,12 @@
 "use client";
-import React, { useState } from "react";
-import { Folder, Trash2, Tag, Search, Edit2, Check, X } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Folder, Trash2, Tag, Search, Edit2, Check, X, Image as ImageIcon, Palette, Upload, Plus } from "lucide-react";
 import { Category } from "../../data/initialData";
 import { useApp } from "../../context/AppContext";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Icon from "@/components/Icon";
+import AllIcon from "@/components/AllIcon";
 
 interface CategoryListProps {
   categories: Category[];
@@ -19,6 +21,7 @@ interface ApiResponse {
     name: string;
     nameBn: string;
     icon: string;
+    iconColor?: string;
     image?: string;
     slug: string;
     active: boolean;
@@ -27,6 +30,25 @@ interface ApiResponse {
   };
   error?: string;
 }
+
+// Predefined color options
+const colorOptions = [
+  { name: "Blue", value: "#3B82F6" },
+  { name: "Purple", value: "#8B5CF6" },
+  { name: "Pink", value: "#EC4899" },
+  { name: "Green", value: "#10B981" },
+  { name: "Yellow", value: "#F59E0B" },
+  { name: "Red", value: "#EF4444" },
+  { name: "Indigo", value: "#6366F1" },
+  { name: "Teal", value: "#14B8A6" },
+  { name: "Orange", value: "#F97316" },
+  { name: "Cyan", value: "#06B6D4" },
+  { name: "Rose", value: "#F43F5E" },
+  { name: "Amber", value: "#FBBF24" },
+  { name: "Emerald", value: "#059669" },
+  { name: "Slate", value: "#64748B" },
+  { name: "Gray", value: "#6B7280" },
+];
 
 const TableList: React.FC<CategoryListProps> = ({
   categories,
@@ -39,6 +61,15 @@ const TableList: React.FC<CategoryListProps> = ({
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>("");
   const [editNameBn, setEditNameBn] = useState<string>("");
+  const [editIcon, setEditIcon] = useState<string>("");
+  const [editIconColor, setEditIconColor] = useState<string>("#3B82F6");
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string>("");
+  const [editUploadMethod, setEditUploadMethod] = useState<"icon" | "image">("icon");
+  const [showEditIconPicker, setShowEditIconPicker] = useState<boolean>(false);
+  const [showEditColorPicker, setShowEditColorPicker] = useState<boolean>(false);
+  
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   // Loading states
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -57,16 +88,35 @@ const TableList: React.FC<CategoryListProps> = ({
     setIsUpdating(id);
 
     try {
-      const res = await fetch("/api/category", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id,
-          ...updatedFields,
-        }),
-      });
+      let res;
+      
+      // যদি ইমেজ আপলোড করে
+      if (editUploadMethod === "image" && editImage) {
+        const formData = new FormData();
+        formData.append("id", id);
+        formData.append("name", updatedFields.name || "");
+        formData.append("nameBn", updatedFields.nameBn || "");
+        formData.append("image", editImage);
+        
+        res = await fetch("/api/category", {
+          method: "PUT",
+          body: formData,
+        });
+      } else {
+        // আইকন আপডেট করে
+        res = await fetch("/api/category", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id,
+            ...updatedFields,
+            icon: editIcon,
+            iconColor: editIconColor,
+          }),
+        });
+      }
 
       const data: ApiResponse = await res.json();
 
@@ -88,6 +138,7 @@ const TableList: React.FC<CategoryListProps> = ({
                   name: data.data.name,
                   nameBn: data.data.nameBn,
                   icon: data.data.icon,
+                  iconColor: data.data.iconColor,
                   image: data.data.image,
                   active: data.data.active,
                 }
@@ -114,6 +165,71 @@ const TableList: React.FC<CategoryListProps> = ({
     } finally {
       setIsUpdating(null);
     }
+  };
+
+  const handleEditImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(isBn ? "শুধু ইমেজ ফাইল সাপোর্টেড" : "Only image files are supported");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(isBn ? "ইমেজ সাইজ 2MB এর কম হতে হবে" : "Image size must be less than 2MB");
+        return;
+      }
+      setEditImage(file);
+      const previewUrl = URL.createObjectURL(file);
+      setEditImagePreview(previewUrl);
+    }
+  };
+
+  const handleEdit = (category: Category) => {
+    setEditId(category._id || category.id || null);
+    setEditName(category.name);
+    setEditNameBn(category.nameBn);
+    setEditIcon(category.icon);
+    setEditIconColor(category.iconColor || "#3B82F6");
+    setEditUploadMethod(category.image && category.image.startsWith("/") ? "image" : "icon");
+    if (category.image && category.image.startsWith("/")) {
+      setEditImagePreview(category.image);
+    } else {
+      setEditImagePreview("");
+    }
+    setEditImage(null);
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    if (editName.trim() && editNameBn.trim()) {
+      const updateData: Partial<Category> = {
+        name: editName.trim(),
+        nameBn: editNameBn.trim(),
+      };
+      
+      if (editUploadMethod === "icon") {
+        updateData.icon = editIcon;
+        updateData.iconColor = editIconColor;
+      }
+      
+      await onUpdateCategory(id, updateData);
+      setEditId(null);
+      setEditImagePreview("");
+      setEditImage(null);
+    } else {
+      toast.error(isBn ? "নাম দুটি পূরণ করুন" : "Please fill both names");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditId(null);
+    setEditName("");
+    setEditNameBn("");
+    setEditIcon("");
+    setEditIconColor("#3B82F6");
+    setEditImagePreview("");
+    setEditImage(null);
+    setShowEditIconPicker(false);
+    setShowEditColorPicker(false);
   };
 
   const onToggleStatus = async (id: string, currentStatus: boolean) => {
@@ -176,7 +292,6 @@ const TableList: React.FC<CategoryListProps> = ({
       return;
     }
 
-    // Confirm before delete
     const confirmDelete = confirm(
       isBn
         ? "আপনি কি এই ক্যাটাগরিটি ডিলিট করতে চান?"
@@ -204,9 +319,7 @@ const TableList: React.FC<CategoryListProps> = ({
       const data = await res.json();
 
       if (data.success) {
-        // Update local state
         setCategories(categories.filter((c) => c._id !== id && c.id !== id));
-
         toast.success(
           data.message ||
             (isBn
@@ -215,7 +328,6 @@ const TableList: React.FC<CategoryListProps> = ({
         );
         router.refresh();
 
-        // Adjust current page if needed
         const currentCategoryList = filteredCategories.filter(
           (c) => c._id !== id && c.id !== id,
         );
@@ -258,42 +370,6 @@ const TableList: React.FC<CategoryListProps> = ({
     startIndex + itemsPerPage,
   );
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    setCurrentPage(1);
-  };
-
-  const handleItemsPerPageChange = (
-    e: React.ChangeEvent<HTMLSelectElement>,
-  ) => {
-    setItemsPerPage(Number(e.target.value));
-    setCurrentPage(1);
-  };
-
-  const handleEdit = (category: Category) => {
-    setEditId(category._id || category.id || null);
-    setEditName(category.name);
-    setEditNameBn(category.nameBn);
-  };
-
-  const handleSaveEdit = async (id: string) => {
-    if (editName.trim() && editNameBn.trim()) {
-      await onUpdateCategory(id, {
-        name: editName.trim(),
-        nameBn: editNameBn.trim(),
-      });
-      setEditId(null);
-    } else {
-      toast.error(isBn ? "নাম দুটি পূরণ করুন" : "Please fill both names");
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditId(null);
-    setEditName("");
-    setEditNameBn("");
-  };
-
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 lg:col-span-2 flex flex-col justify-between h-full min-h-[420px]">
       <div>
@@ -308,7 +384,6 @@ const TableList: React.FC<CategoryListProps> = ({
             </span>
           </div>
 
-          {/* Search Bar and Items per Page Selector */}
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <div className="flex items-center gap-2">
               <label className="text-xs text-slate-500 font-medium">
@@ -316,7 +391,10 @@ const TableList: React.FC<CategoryListProps> = ({
               </label>
               <select
                 value={itemsPerPage}
-                onChange={handleItemsPerPageChange}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
                 className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-medium bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value={10}>10</option>
@@ -331,7 +409,10 @@ const TableList: React.FC<CategoryListProps> = ({
               <input
                 type="text"
                 value={search}
-                onChange={handleSearchChange}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder={
                   isBn ? "ক্যাটাগরি খুঁজুন..." : "Search categories..."
                 }
@@ -341,7 +422,6 @@ const TableList: React.FC<CategoryListProps> = ({
           </div>
         </div>
 
-        {/* Table layout for Categories */}
         <div className="overflow-x-auto rounded-xl border border-slate-100 mb-6">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -358,7 +438,7 @@ const TableList: React.FC<CategoryListProps> = ({
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase text-right">
                   {isBn ? "অ্যাকশন" : "Action"}
                 </th>
-              </tr>
+               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {currentItems.length > 0 ? (
@@ -369,27 +449,146 @@ const TableList: React.FC<CategoryListProps> = ({
                   >
                     <td className="px-4 py-3.5">
                       {editId === (category._id || category.id) ? (
-                        <div className="flex flex-col gap-1.5 w-full">
+                        <div className="space-y-3">
                           <input
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             placeholder="English Name"
-                            className="px-2 py-1 border border-slate-300 rounded text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
-                            disabled={
-                              isUpdating === (category._id || category.id)
-                            }
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={isUpdating === (category._id || category.id)}
                           />
                           <input
                             type="text"
                             value={editNameBn}
                             onChange={(e) => setEditNameBn(e.target.value)}
                             placeholder="বাংলা নাম"
-                            className="px-2 py-1 border border-slate-300 rounded text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
-                            disabled={
-                              isUpdating === (category._id || category.id)
-                            }
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={isUpdating === (category._id || category.id)}
                           />
+                          
+                          {/* Upload Method Selection */}
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditUploadMethod("icon")}
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium ${
+                                editUploadMethod === "icon"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              Icon
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditUploadMethod("image")}
+                              className={`flex-1 px-2 py-1 rounded text-xs font-medium ${
+                                editUploadMethod === "image"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              Image
+                            </button>
+                          </div>
+
+                          {/* Icon Selection */}
+                          {editUploadMethod === "icon" && (
+                            <div className="space-y-2">
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowEditIconPicker(!showEditIconPicker)}
+                                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm flex items-center gap-2"
+                                >
+                                  <Icon name={editIcon} size={16} color={editIconColor} />
+                                  <span className="flex-1 text-left">{editIcon}</span>
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                                {showEditIconPicker && (
+                                  <div className="absolute z-20 mt-1 w-64 bg-white border rounded-lg shadow-lg">
+                                    <AllIcon
+                                      showAllIcons={true}
+                                      onSelectIcon={(iconName) => {
+                                        setEditIcon(iconName);
+                                        setShowEditIconPicker(false);
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Color Selection */}
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowEditColorPicker(!showEditColorPicker)}
+                                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm flex items-center gap-2"
+                                >
+                                  <div className="w-4 h-4 rounded-full border" style={{ backgroundColor: editIconColor }} />
+                                  <span className="flex-1 text-left">{editIconColor}</span>
+                                  <Palette className="w-3 h-3" />
+                                </button>
+                                {showEditColorPicker && (
+                                  <div className="absolute z-20 mt-1 w-48 bg-white border rounded-lg shadow-lg p-2">
+                                    <div className="grid grid-cols-5 gap-1">
+                                      {colorOptions.map((color) => (
+                                        <button
+                                          key={color.value}
+                                          onClick={() => {
+                                            setEditIconColor(color.value);
+                                            setShowEditColorPicker(false);
+                                          }}
+                                          className="w-6 h-6 rounded-full border hover:scale-110 transition"
+                                          style={{ backgroundColor: color.value }}
+                                          title={color.name}
+                                        />
+                                      ))}
+                                    </div>
+                                    <input
+                                      type="color"
+                                      value={editIconColor}
+                                      onChange={(e) => setEditIconColor(e.target.value)}
+                                      className="w-full mt-2 h-8 rounded cursor-pointer"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Image Upload */}
+                          {editUploadMethod === "image" && (
+                            <div className="border-2 border-dashed border-slate-200 rounded-lg p-2 text-center">
+                              {!editImagePreview ? (
+                                <div onClick={() => editFileInputRef.current?.click()} className="cursor-pointer">
+                                  <Upload className="w-6 h-6 text-slate-400 mx-auto" />
+                                  <p className="text-xs text-slate-500">Click to upload</p>
+                                </div>
+                              ) : (
+                                <div className="relative">
+                                  <img src={editImagePreview} alt="Preview" className="h-16 mx-auto rounded object-contain" />
+                                  <button
+                                    onClick={() => {
+                                      setEditImagePreview("");
+                                      setEditImage(null);
+                                    }}
+                                    className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                              <input
+                                ref={editFileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleEditImageSelect}
+                                className="hidden"
+                              />
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2.5">
@@ -401,10 +600,11 @@ const TableList: React.FC<CategoryListProps> = ({
                                 className="w-4 h-4 object-contain"
                               />
                             ) : (
-                              (() => {
-                                const Icon = category.icon;
-                                return <Icon className="w-10 h-10" />;
-                              })()
+                              <Icon
+                                name={category.icon}
+                                size={20}
+                                color={category.iconColor || "#3B82F6"}
+                              />
                             )}
                           </div>
                           <div>
@@ -426,16 +626,9 @@ const TableList: React.FC<CategoryListProps> = ({
                     </td>
                     <td className="px-4 py-3.5">
                       <button
-                        onClick={() =>
-                          onToggleStatus(
-                            category._id || category.id || "",
-                            category.active !== false,
-                          )
-                        }
-                        disabled={
-                          isTogglingStatus === (category._id || category.id)
-                        }
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        onClick={() => onToggleStatus(category._id || category.id || "", category.active !== false)}
+                        disabled={isTogglingStatus === (category._id || category.id)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50 ${
                           category.active === false
                             ? "bg-amber-50 text-amber-600 border border-amber-200"
                             : "bg-emerald-50 text-emerald-600 border border-emerald-200"
@@ -444,16 +637,8 @@ const TableList: React.FC<CategoryListProps> = ({
                         {isTogglingStatus === (category._id || category.id) ? (
                           <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mx-2" />
                         ) : category.active === false ? (
-                          isBn ? (
-                            "নিষ্ক্রিয়"
-                          ) : (
-                            "Inactive"
-                          )
-                        ) : isBn ? (
-                          "সক্রিয়"
-                        ) : (
-                          "Active"
-                        )}
+                          isBn ? "নিষ্ক্রিয়" : "Inactive"
+                        ) : isBn ? "সক্রিয়" : "Active"}
                       </button>
                     </td>
                     <td className="px-4 py-3.5 text-right">
@@ -461,16 +646,9 @@ const TableList: React.FC<CategoryListProps> = ({
                         {editId === (category._id || category.id) ? (
                           <>
                             <button
-                              onClick={() =>
-                                handleSaveEdit(
-                                  category._id || category.id || "",
-                                )
-                              }
-                              disabled={
-                                isUpdating === (category._id || category.id)
-                              }
-                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors disabled:opacity-50"
-                              title="Save"
+                              onClick={() => handleSaveEdit(category._id || category.id || "")}
+                              disabled={isUpdating === (category._id || category.id)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                             >
                               {isUpdating === (category._id || category.id) ? (
                                 <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
@@ -480,11 +658,7 @@ const TableList: React.FC<CategoryListProps> = ({
                             </button>
                             <button
                               onClick={handleCancelEdit}
-                              disabled={
-                                isUpdating === (category._id || category.id)
-                              }
-                              className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition-colors disabled:opacity-50"
-                              title="Cancel"
+                              className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition-colors"
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -493,20 +667,14 @@ const TableList: React.FC<CategoryListProps> = ({
                           <button
                             onClick={() => handleEdit(category)}
                             className="p-1.5 text-slate-400 hover:text-indigo-600 rounded hover:bg-indigo-50 transition-all"
-                            title="Edit category"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                         )}
                         <button
-                          onClick={() =>
-                            onDeleteCategory(category._id || category.id || "")
-                          }
-                          disabled={
-                            isDeleting === (category._id || category.id)
-                          }
-                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-all disabled:opacity-50"
-                          title="Delete category"
+                          onClick={() => onDeleteCategory(category._id || category.id || "")}
+                          disabled={isDeleting === (category._id || category.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-all"
                         >
                           {isDeleting === (category._id || category.id) ? (
                             <div className="w-4 h-4 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
@@ -516,17 +684,12 @@ const TableList: React.FC<CategoryListProps> = ({
                         </button>
                       </div>
                     </td>
-                  </tr>
+                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-12 text-center text-sm text-slate-500"
-                  >
-                    {isBn
-                      ? "কোনো ক্যাটাগরি পাওয়া যায়নি।"
-                      : "No categories found matching your search."}
+                  <td colSpan={4} className="px-4 py-12 text-center text-sm text-slate-500">
+                    {isBn ? "কোনো ক্যাটাগরি পাওয়া যায়নি।" : "No categories found matching your search."}
                   </td>
                 </tr>
               )}
@@ -539,68 +702,45 @@ const TableList: React.FC<CategoryListProps> = ({
       {filteredCategories.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-auto">
           <p className="text-xs text-slate-500">
-            {isBn ? "দেখানো হচ্ছে" : "Showing"}{" "}
-            <span className="font-semibold text-slate-700">
-              {startIndex + 1}
-            </span>{" "}
-            {isBn ? "থেকে" : "to"}{" "}
-            <span className="font-semibold text-slate-700">
+            {isBn ? "দেখানো হচ্ছে" : "Showing"} <span className="font-semibold text-slate-700">{startIndex + 1}</span>{" "}
+            {isBn ? "থেকে" : "to"} <span className="font-semibold text-slate-700">
               {Math.min(startIndex + itemsPerPage, filteredCategories.length)}
             </span>{" "}
-            {isBn ? "সর্বমোট" : "of"}{" "}
-            <span className="font-semibold text-slate-700">
-              {filteredCategories.length}
-            </span>{" "}
+            {isBn ? "সর্বমোট" : "of"} <span className="font-semibold text-slate-700">{filteredCategories.length}</span>{" "}
             {isBn ? "টি" : "entries"}
           </p>
-
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all"
             >
               {isBn ? "পূর্ববর্তী" : "Prev"}
             </button>
-
             {Array.from({ length: totalPages }, (_, idx) => {
               const pageNumber = idx + 1;
-              if (
-                pageNumber === 1 ||
-                pageNumber === totalPages ||
-                (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
-              ) {
+              if (pageNumber === 1 || pageNumber === totalPages || (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)) {
                 return (
                   <button
                     key={pageNumber}
                     onClick={() => setCurrentPage(pageNumber)}
                     className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all ${
-                      currentPage === pageNumber
-                        ? "bg-blue-600 text-white shadow"
-                        : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                      currentPage === pageNumber ? "bg-blue-600 text-white shadow" : "border border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     {pageNumber}
                   </button>
                 );
               }
-              if (
-                pageNumber === currentPage - 2 ||
-                pageNumber === currentPage + 2
-              ) {
-                return (
-                  <span key={pageNumber} className="text-slate-400">
-                    ...
-                  </span>
-                );
+              if (pageNumber === currentPage - 2 || pageNumber === currentPage + 2) {
+                return <span key={pageNumber} className="text-slate-400">...</span>;
               }
               return null;
             })}
-
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all"
             >
               {isBn ? "পরবর্তী" : "Next"}
             </button>

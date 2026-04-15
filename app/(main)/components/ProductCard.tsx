@@ -1,10 +1,11 @@
 'use client'
 import { taka } from "../../../utils/currency";
+import { toBengaliNumber } from "../../../utils/helpers";
 import Link from "next/link";
 import { useApp } from "../context/AppContext";
 
 export const ProductCard = ({ product }) => {
-  const { addToCart } = useApp();
+  const { isBn, addToCart } = useApp();
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
@@ -25,7 +26,7 @@ export const ProductCard = ({ product }) => {
         )}
         {product.isNew && !product.isSale && (
           <span className="absolute top-3 left-3 bg-green-500 text-white text-xs px-2 py-1 rounded-full z-10">
-            NEW
+            {isBn ? 'নতুন' : 'NEW'}
           </span>
         )}
 
@@ -46,16 +47,22 @@ export const ProductCard = ({ product }) => {
 
         <div className="px-3 pb-3 pt-3 text-center">
           <Link href={`/product/${product.id}`} className="mx-auto text-[15px] line-clamp-2 font-semibold hover:text-[#095059] transition-all duration-300 leading-5 text-slate-700">
-            {product.name}
+            {isBn ? product.nameBn : product.name}
           </Link>
           <div className="mt-2 flex items-center justify-center gap-1.5">
             {product.originalPrice && (
               <span className="text-[12px] text-gray-400 line-through">
-                {taka(product.originalPrice)}
+                {isBn
+                ? toBengaliNumber(product.originalPrice)
+                : taka(product.originalPrice)
+                }
               </span>
             )}
             <p className="text-[22px] font-semibold leading-none text-[#095059]">
-              {taka(product.price)}
+              {isBn 
+                ? toBengaliNumber(taka(product.price)) 
+                : taka(product.price)
+              }
             </p>
           </div>
 
@@ -64,7 +71,7 @@ export const ProductCard = ({ product }) => {
               onClick={handleAddToCart} 
               className="rounded bg-[#095059] hover:bg-[#0e6e78] transition-all duration-300 px-4 py-2 text-sm font-semibold text-white"
             >
-              Add To Cart
+              {isBn ? 'এখনই কিনুন' : 'Buy Now'}
             </button>
           </div>
         </div>

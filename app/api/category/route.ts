@@ -19,6 +19,7 @@ interface CategoryData {
   name: string;
   nameBn: string;
   icon?: string;
+  iconColor?: string;
   image?: string;
   slug: string;
   active?: boolean;
@@ -91,7 +92,7 @@ export async function GET(request: NextRequest) {
 // ==================== POST: Create a new category ====================
 export async function POST(request: NextRequest) {
   try {
-    let name, nameBn, icon, image;
+    let name, nameBn, icon, iconColor, image;
     
     const contentType = request.headers.get("content-type");
     
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
       const imageUrl = await saveImage(imageFile);
       icon = imageUrl;
       image = imageUrl;
+      iconColor = ""; // image upload এ iconColor থাকবে না
       
     } else {
       // Handle icon upload
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
       name = body.name;
       nameBn = body.nameBn;
       icon = body.icon;
+      iconColor = body.iconColor || "#3B82F6"; // ডিফল্ট কালার সেট
       image = body.icon;
 
       // Validation
@@ -191,6 +194,7 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       nameBn: nameBn.trim(),
       icon: icon,
+      iconColor: iconColor, // iconColor যোগ করা হয়েছে
       image: image,
       slug: slug,
       active: true,
@@ -225,7 +229,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, nameBn, icon, image } = body;
+    const { id, name, nameBn, icon, iconColor, image } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -257,6 +261,10 @@ export async function PUT(request: NextRequest) {
     if (icon && icon.trim()) {
       updateData.icon = icon.trim();
       updateData.image = icon.trim();
+    }
+    
+    if (iconColor && iconColor.trim()) {
+      updateData.iconColor = iconColor.trim(); // iconColor আপডেট
     }
     
     if (image && image.trim()) {

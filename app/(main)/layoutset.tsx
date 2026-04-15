@@ -9,17 +9,18 @@ import { Footer } from "./components/Footer";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SidebarMobile } from "./components/SidebarMobile";
 
-export default function LayoutSet({ children }) {
+export default function LayoutSet({ children, categories, settings }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      <Sidebar isExpanded={isExpanded} setIsExpanded={setIsExpanded} />
+      <Sidebar isExpanded={isExpanded} setIsExpanded={setIsExpanded} categories={categories} />
 
       <main className="flex-1 ml-0 lg:ml-16 flex flex-col min-h-screen relative">
         <Topbar
+          settings={settings}
           isExpanded={isExpanded}
           setIsExpanded={setIsExpanded}
           openCart={() => setDrawerOpen(true)}
@@ -27,11 +28,11 @@ export default function LayoutSet({ children }) {
           setIsMobileExpanded={setIsMobileExpanded}
         />
         <div className="flex-1 w-full py-4 px-3">{children}</div>
-        <Footer />
+        <Footer settings={settings} />
       </main>
 
       <CartDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <SidebarMobile isMobileExpanded={isMobileExpanded} setIsMobileExpanded={setIsMobileExpanded} />
+      <SidebarMobile isMobileExpanded={isMobileExpanded} setIsMobileExpanded={setIsMobileExpanded} categories={categories} />
       <ScrollToTop />
     </div>
   );

@@ -20,14 +20,6 @@ import {
 import { useApp } from "../../context/AppContext";
 import { taka } from "@/utils/currency";
 
-const colors = [
-  { name: "Taupe", hex: "#9b8576" },
-  { name: "Navy", hex: "#2c3e6b" },
-  { name: "Black", hex: "#1a1a1a" },
-];
-
-const sizes = ["L", "M", "S", "XL", "XS"];
-
 function StarRating({ rating, count }: { rating: number; count?: number }) {
   return (
     <div className="flex items-center gap-1">
@@ -52,17 +44,16 @@ function StarRating({ rating, count }: { rating: number; count?: number }) {
 export default function ProductDetail({ product }) {
   const { addToCart, addToWishlist } = useApp();
 
-  const [selectedColor, setSelectedColor] = useState(0);
-  const [selectedSize, setSelectedSize] = useState("XL");
+  const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || "");
+  const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || "");
   const [qty, setQty] = useState(1);
   const [activeThumb, setActiveThumb] = useState(0);
   const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 });
   const [showZoom, setShowZoom] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(200); // 100% to 400%
+  const [zoomLevel, setZoomLevel] = useState(200);
   const imageContainerRef = useRef(null);
-  const zoomLensRef = useRef(null);
 
-  const productImages = [product.image, product.hoverImage];
+  const productImages = [product.image, product.hoverImage].filter(Boolean);
 
   const goSlide = (direction: "prev" | "next") => {
     setActiveThumb((prev) => {
@@ -81,7 +72,6 @@ export default function ProductDetail({ product }) {
     let x = ((e.clientX - left) / width) * 100;
     let y = ((e.clientY - top) / height) * 100;
 
-    // Clamp values between 0 and 100
     x = Math.min(Math.max(x, 0), 100);
     y = Math.min(Math.max(y, 0), 100);
 
@@ -96,7 +86,31 @@ export default function ProductDetail({ product }) {
     setZoomLevel((prev) => Math.max(prev - 50, 100));
   };
 
-  const currentImage = productImages[activeThumb];
+  const handleAddToCart = () => {
+    // Create a copy of the product with selected options
+    const productWithOptions = {
+      ...product,
+      quantity: qty,
+      selectedColor: selectedColor,
+      selectedSize: selectedSize,
+      // Generate a unique ID for this variant (optional but recommended)
+      // This ensures different color/size combinations are treated as separate cart items
+      id: `${product.id}-${selectedColor}-${selectedSize}`,
+      originalId: product.id, // Keep track of original product ID
+    };
+    
+    addToCart(productWithOptions);
+    
+    // Optional: Show success message or toast notification
+    console.log("Added to cart:", {
+      name: product.name,
+      color: selectedColor,
+      size: selectedSize,
+      quantity: qty
+    });
+  };
+
+  const currentImage = productImages[activeThumb] || product.image;
 
   return (
     <div className="flex gap-6">
@@ -139,7 +153,6 @@ export default function ProductDetail({ product }) {
             className="w-full h-[420px] object-cover object-top"
           />
 
-          {/* Zoom lens effect */}
           {showZoom && zoomLevel > 100 && (
             <div
               className="absolute inset-0 pointer-events-none"
@@ -152,14 +165,12 @@ export default function ProductDetail({ product }) {
             />
           )}
 
-          {/* Zoom indicator */}
           {showZoom && zoomLevel > 100 && (
             <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
               {zoomLevel}% zoom
             </div>
           )}
 
-          {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
             <span className="bg-[#095059] text-white text-[10px] font-bold px-2 py-0.5 rounded">
               SALE
@@ -218,24 +229,15 @@ export default function ProductDetail({ product }) {
 
       {/* Product Info */}
       <div className="flex-1 min-w-0">
-        {/* Brand & Title */}
         <div className="mb-3">
           <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-2">
             {product.name}
           </h1>
-          {/* Features */}
-          <ul className="text-sm text-gray-600 space-y-1 mb-4 pl-4">
-            <li className="list-disc">Anti-vibration Metal Hooks.</li>
-            <li className="list-disc">
-              Designed For Premium Sensitivity And Tactile Feel.
-            </li>
-            <li className="list-disc">
-              Available In Various Sizes To Accommodate Different Hand Sizes.
-            </li>
-          </ul>
+          <div className="text-sm text-gray-600 space-y-1 mb-4 pl-4">
+            {product.description}
+          </div>
         </div>
 
-        {/* Price */}
         <div className="flex items-baseline gap-3 mb-3">
           <span className="text-3xl font-black text-gray-900">
             {taka(product.price)}
@@ -246,6 +248,56 @@ export default function ProductDetail({ product }) {
             </span>
           )}
         </div>
+
+        {/* Color Selection */}
+        {product.colors && product.colors.length > 0 && (
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-gray-800 mb-2">
+              Color: <span className="text-orange-600 font-normal">{selectedColor}</span>
+            </p>
+            <div className="flex items-center gap-2">
+              {product.colors.map((color, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedColor(color)}
+                  title={color}
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${
+                    selectedColor === color
+                      ? "border-orange-500 scale-110 shadow"
+                      : "border-gray-300 hover:border-gray-500"
+                  }`}
+                  style={{ backgroundColor: color.toLowerCase() }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Size Selection */}
+        {product.sizes && product.sizes.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-gray-800">
+                Size: <span className="text-orange-600 font-normal">{selectedSize}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {product.sizes.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setSelectedSize(size)}
+                  className={`px-3 py-1 text-sm border rounded font-medium transition-all ${
+                    selectedSize === size
+                      ? "bg-orange-500 text-white border-orange-500"
+                      : "border-gray-300 text-gray-700 hover:border-orange-400 hover:text-orange-500"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Qty + Add to cart */}
         <div className="flex items-center gap-3 mb-3 mt-8">
@@ -265,19 +317,19 @@ export default function ProductDetail({ product }) {
             </button>
           </div>
           <button
-            onClick={() => addToCart({ ...product, quantity: qty })}
+            onClick={handleAddToCart}
             className="flex-1 bg-[#095059] hover:bg-[#0e6e78] text-white font-bold py-2.5 rounded transition-colors text-sm"
           >
             Add To Cart
           </button>
         </div>
 
-        {/* Buy Now */}
         <button className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 rounded transition-colors text-sm mb-4">
           Buy Now
         </button>
       </div>
 
+      {/* Product Details Table */}
       <div className="">
         <table className="w-[300px] text-left text-sm text-gray-600 border border-gray-100 shadow-sm rounded">
           <tbody>
@@ -291,40 +343,38 @@ export default function ProductDetail({ product }) {
               <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
                 Brand
               </th>
-              <td className="py-2 px-3">Creative</td>
+              <td className="py-2 px-3">{product.brand}</td>
             </tr>
             <tr className="border-t border-gray-100">
               <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
                 Category
               </th>
-              <td className="py-2 px-3">Electronics</td>
+              <td className="py-2 px-3">{product.category}</td>
             </tr>
-            <tr className="border-t border-gray-100">
-              <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                Color
-              </th>
-              <td className="py-2 px-3">Green</td>
-            </tr>
-            <tr className="border-t border-gray-100">
-              <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                Rating
-              </th>
-              <td className="py-2 px-3">
-                <StarRating rating={4} count={75} />
-              </td>
-            </tr>
-            <tr className="border-t border-gray-100">
-              <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                Reviews
-              </th>
-              <td className="py-2 px-3">75</td>
-            </tr>
-            <tr className="border-t border-gray-100">
-              <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                Highlight
-              </th>
-              <td className="py-2 px-3">New Arrivals</td>
-            </tr>
+            {selectedColor && (
+              <tr className="border-t border-gray-100">
+                <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
+                  Selected Color
+                </th>
+                <td className="py-2 px-3">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: selectedColor.toLowerCase() }}
+                    />
+                    <span>{selectedColor}</span>
+                  </div>
+                </td>
+              </tr>
+            )}
+            {selectedSize && (
+              <tr className="border-t border-gray-100">
+                <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
+                  Selected Size
+                </th>
+                <td className="py-2 px-3 font-semibold">{selectedSize}</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

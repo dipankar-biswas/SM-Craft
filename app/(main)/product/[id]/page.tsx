@@ -1,14 +1,14 @@
 
-import { getProductById, getProductsByCategory } from "@/queries/datalist";
 import Breadcrumb from "../../components/product/Breadcrumb";
 import ProductDetail from "../../components/product/ProductDetail";
 import RelatedProducts from "../../components/product/RelatedProducts";
+import { getProductDetails, getProductsByCategory } from "@/queries/products";
 
 const ProductDetailsPage = async ({ params }) => {
   const resolvedParams = await params;
   const id = resolvedParams.id;
 
-  const product = await getProductById(id);
+  const product = await getProductDetails(id);
   
   const products = await getProductsByCategory(product.category);
   products.splice(products.findIndex(p => p.id == product.id), 1); // Remove current product from related products

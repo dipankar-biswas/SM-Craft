@@ -4,6 +4,9 @@ import { Inter } from "next/font/google";
 import "../globals.css";
 import { AppProvider } from "./context/AppContext";
 import LayoutSet from "./layoutset";
+import { dbConnect } from "@/service/mongo";
+import { getCategories } from "@/queries/categories";
+import { getSettings } from "@/queries/settings";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -12,13 +15,17 @@ export const metadata: Metadata = {
   description: "Best products at best prices",
 };
 
-export default function RootLayout({children}) {
-  
+export default async function RootLayout({children}) {
+  await dbConnect();
+  const categories = await getCategories();
+  const settings = await getSettings();
   return (
     <html lang="en">
       <body className={inter.className}>
         <AppProvider>
-          <LayoutSet>{children}</LayoutSet>
+          <LayoutSet categories={categories} settings={settings}>
+            {children}
+          </LayoutSet>
         </AppProvider>
       </body>
     </html>
