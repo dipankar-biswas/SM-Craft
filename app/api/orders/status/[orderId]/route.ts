@@ -1,15 +1,12 @@
 // app/api/orders/status/[orderId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getOrderStatusWithTimeline } from "@/queries/orders";
-import { connectToDatabase } from "@/lib/mongodb";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { orderId: string } }
 ) {
-  try {
-    await connectToDatabase();
-    
+  try {    
     const statusData = await getOrderStatusWithTimeline(params.orderId);
     
     if (!statusData) {

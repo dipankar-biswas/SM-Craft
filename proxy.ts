@@ -4,7 +4,22 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Define routes
-const PUBLIC_ROUTES = ["/login", "/register", "/", "/admin/login"];
+const PUBLIC_ROUTES = [
+  "/login",
+  "/register",
+  "/",
+  "/admin/login",
+  "/product",
+  "/products",
+  "/product-category",
+  "/cart",
+  "/checkout",
+  "/order-success",
+  "/order-tracking",
+  "/about",
+  "/contact",
+  "/terms",
+];
 const LOGIN = "/login";
 const ADMIN_LOGIN = "/admin/login";
 const ROOT = "/";
@@ -13,7 +28,7 @@ const DASHBOARD = "/dashboard";
 // ✅ Change function name from 'middleware' to 'proxy'
 export async function proxy(req: NextRequest) {
   const { nextUrl } = req;
-  
+
   try {
     const session = await auth();
     const isAuthenticated = !!session?.user;
@@ -28,7 +43,8 @@ export async function proxy(req: NextRequest) {
     }
 
     const isPublicRoute = PUBLIC_ROUTES.some(
-      (route) => nextUrl.pathname === route || nextUrl.pathname.startsWith(route + "/")
+      (route) =>
+        nextUrl.pathname === route || nextUrl.pathname.startsWith(route + "/"),
     );
 
     if (!isAuthenticated && !isPublicRoute) {
@@ -55,7 +71,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next|favicon.ico|.*\\..*).*)",
-  ],
+  matcher: ["/((?!_next|favicon.ico|.*\\..*).*)"],
 };

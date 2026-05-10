@@ -28,7 +28,7 @@ export default function LayoutSet({ children, categories, settings }) {
           setIsMobileExpanded={setIsMobileExpanded}
         />
         <div className="flex-1 w-full py-4 px-3">{children}</div>
-        <Footer settings={settings} />
+        <Footer settings={settings} categories={categories} />
       </main>
 
       <CartDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />

@@ -1,6 +1,7 @@
+// components/EditModal.tsx
 'use client';
-import React, { useState } from 'react';
-import { X, Bold, Italic, List, ChevronDown, Search, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Bold, Italic, List, ChevronDown, Search, Loader2, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
 import { Product, Category, Brand, Size, Color } from '../../data/initialData';
 import { useApp } from '../../context/AppContext';
 import { toast } from 'sonner';
@@ -53,19 +54,98 @@ const EditModal: React.FC<EditModalProps> = ({
   const [editNameBn, setEditNameBn] = useState<string>(product.nameBn || product.name);
   const [editPrice, setEditPrice] = useState<number>(product.price);
   const [editStock, setEditStock] = useState<number>(product.stock || 0);
-  const [editCategory, setEditCategory] = useState<string>(product.category);
-  const [editBrand, setEditBrand] = useState<string>(product.brand);
-  const [editSizes, setEditSizes] = useState<string[]>(product.sizes || []);
-  const [editColors, setEditColors] = useState<string[]>(product.colors || []);
+  
+  // Use IDs instead of names
+  const [editCategoryId, setEditCategoryId] = useState<string>(product.categoryId || '');
+  const [editBrandId, setEditBrandId] = useState<string>(product.brandId || '');
+  const [editSizeIds, setEditSizeIds] = useState<string[]>(product.sizeIds || []);
+  const [editColorIds, setEditColorIds] = useState<string[]>(product.colorIds || []);
+  
   const [editDescription, setEditDescription] = useState<string>(product.description || '');
   const [editDescriptionBn, setEditDescriptionBn] = useState<string>(product.descriptionBn || product.description || '');
   const [editStatus, setEditStatus] = useState<boolean>(product.active !== false);
+  
+  // Image states
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+  const [mainImagePreview, setMainImagePreview] = useState<string>(product.image || '');
+  const [multiImageFiles, setMultiImageFiles] = useState<File[]>([]);
+  const [multiImagePreviews, setMultiImagePreviews] = useState<string[]>(product.multiImages || []);
+  const [removedImages, setRemovedImages] = useState<string[]>([]);
   
   const [editSizeSearch, setEditSizeSearch] = useState<string>('');
   const [editColorSearch, setEditColorSearch] = useState<string>('');
   const [editSizeDropdownOpen, setEditSizeDropdownOpen] = useState<boolean>(false);
   const [editColorDropdownOpen, setEditColorDropdownOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Get selected category and brand names for display
+  const selectedCategory = categories.find(c => (c._id || c.id) === editCategoryId);
+  const selectedBrand = brands.find(b => (b._id || b.id) === editBrandId);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (mainImagePreview && mainImagePreview !== product.image) {
+        URL.revokeObjectURL(mainImagePreview);
+      }
+      multiImagePreviews.forEach(preview => {
+        if (preview && !product.multiImages?.includes(preview)) {
+          URL.revokeObjectURL(preview);
+        }
+      });
+    };
+  }, []);
+
+  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(isBn ? "শুধু ইমেজ ফাইল সাপোর্টেড" : "Only image files are supported");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(isBn ? "ইমেজ সাইজ 2MB এর কম হতে হবে" : "Image size must be less than 2MB");
+        return;
+      }
+      setMainImageFile(file);
+      if (mainImagePreview && mainImagePreview !== product.image) {
+        URL.revokeObjectURL(mainImagePreview);
+      }
+      setMainImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleMultiImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        toast.error(isBn ? `শুধু ইমেজ ফাইল সাপোর্টেড: ${file.name}` : `Only image files supported: ${file.name}`);
+        return false;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(isBn ? `${file.name} সাইজ 2MB এর কম হতে হবে` : `${file.name} size must be less than 2MB`);
+        return false;
+      }
+      return true;
+    });
+    
+    setMultiImageFiles(prev => [...prev, ...validFiles]);
+    const newPreviews = validFiles.map(file => URL.createObjectURL(file));
+    setMultiImagePreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeExistingMultiImage = (imageUrl: string) => {
+    setRemovedImages(prev => [...prev, imageUrl]);
+    setMultiImagePreviews(prev => prev.filter(url => url !== imageUrl));
+  };
+
+  const removeNewMultiImage = (index: number) => {
+    setMultiImageFiles(prev => prev.filter((_, i) => i !== index));
+    setMultiImagePreviews(prev => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
 
   const addTextFormatting = (type: string, target: 'en' | 'bn') => {
     const formatChars: Record<string, [string, string]> = {
@@ -81,28 +161,31 @@ const EditModal: React.FC<EditModalProps> = ({
     }
   };
 
+  // Filter sizes and colors for search
   const filteredEditSizes = sizes.filter(s => 
-    s.name.toLowerCase().includes(editSizeSearch.toLowerCase())
+    (s.name.toLowerCase().includes(editSizeSearch.toLowerCase()) ||
+     (s.nameBn && s.nameBn.toLowerCase().includes(editSizeSearch.toLowerCase())))
   );
   
   const filteredEditColors = colors.filter(c => 
-    c.name.toLowerCase().includes(editColorSearch.toLowerCase()) || 
-    (c.nameBn && c.nameBn.includes(editColorSearch))
+    (c.name.toLowerCase().includes(editColorSearch.toLowerCase()) ||
+     (c.nameBn && c.nameBn.toLowerCase().includes(editColorSearch.toLowerCase())))
   );
 
-  const toggleSize = (sizeName: string) => {
-    setEditSizes(prev => 
-      prev.includes(sizeName) 
-        ? prev.filter(s => s !== sizeName) 
-        : [...prev, sizeName]
+  // Toggle functions using IDs
+  const toggleSize = (sizeId: string) => {
+    setEditSizeIds(prev => 
+      prev.includes(sizeId) 
+        ? prev.filter(id => id !== sizeId) 
+        : [...prev, sizeId]
     );
   };
 
-  const toggleColor = (colorHex: string) => {
-    setEditColors(prev => 
-      prev.includes(colorHex) 
-        ? prev.filter(c => c !== colorHex) 
-        : [...prev, colorHex]
+  const toggleColor = (colorId: string) => {
+    setEditColorIds(prev => 
+      prev.includes(colorId) 
+        ? prev.filter(id => id !== colorId) 
+        : [...prev, colorId]
     );
   };
 
@@ -118,12 +201,12 @@ const EditModal: React.FC<EditModalProps> = ({
       return;
     }
     
-    if (!editCategory) {
+    if (!editCategoryId) {
       toast.error(isBn ? "ক্যাটাগরি নির্বাচন করুন" : "Select category");
       return;
     }
     
-    if (!editBrand) {
+    if (!editBrandId) {
       toast.error(isBn ? "ব্র্যান্ড নির্বাচন করুন" : "Select brand");
       return;
     }
@@ -136,13 +219,28 @@ const EditModal: React.FC<EditModalProps> = ({
     formData.append("nameBn", editNameBn.trim());
     formData.append("price", editPrice.toString());
     formData.append("stock", editStock.toString());
-    formData.append("category", editCategory);
-    formData.append("brand", editBrand);
-    formData.append("sizes", JSON.stringify(editSizes));
-    formData.append("colors", JSON.stringify(editColors));
+    formData.append("category", editCategoryId); // Send category ID
+    formData.append("brand", editBrandId); // Send brand ID
+    formData.append("sizes", JSON.stringify(editSizeIds)); // Send size IDs
+    formData.append("colors", JSON.stringify(editColorIds)); // Send color IDs
     formData.append("description", editDescription);
     formData.append("descriptionBn", editDescriptionBn);
     formData.append("active", editStatus.toString());
+    
+    // Append main image if changed
+    if (mainImageFile) {
+      formData.append("image", mainImageFile);
+    }
+    
+    // Append new multi images
+    multiImageFiles.forEach(file => {
+      formData.append("multiImages", file);
+    });
+    
+    // Append removed images list
+    if (removedImages.length > 0) {
+      formData.append("removeImages", JSON.stringify(removedImages));
+    }
 
     try {
       const res = await fetch("/api/product", {
@@ -169,6 +267,9 @@ const EditModal: React.FC<EditModalProps> = ({
           colors: data.data.colors,
           description: data.data.description,
           descriptionBn: data.data.descriptionBn,
+          image: data.data.image,
+          multiImages: data.data.multiImages,
+          video: data.data.video,
           active: data.data.active,
           status: data.data.active ? "Active" : "Inactive",
         };
@@ -260,13 +361,14 @@ const EditModal: React.FC<EditModalProps> = ({
                 {isBn ? 'ব্র্যান্ড *' : 'Brand *'}
               </label>
               <select 
-                value={editBrand} 
-                onChange={(e) => setEditBrand(e.target.value)} 
+                value={editBrandId} 
+                onChange={(e) => setEditBrandId(e.target.value)} 
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 disabled={isLoading}
               >
+                <option value="">{isBn ? "-- ব্র্যান্ড নির্বাচন করুন --" : "-- Select Brand --"}</option>
                 {brands.map((b) => (
-                  <option key={b._id || b.id} value={b.name}>
+                  <option key={b._id || b.id} value={b._id || b.id}>
                     {isBn ? b.nameBn || b.name : b.name}
                   </option>
                 ))}
@@ -277,13 +379,14 @@ const EditModal: React.FC<EditModalProps> = ({
                 {isBn ? 'ক্যাটাগরি *' : 'Category *'}
               </label>
               <select 
-                value={editCategory} 
-                onChange={(e) => setEditCategory(e.target.value)} 
+                value={editCategoryId} 
+                onChange={(e) => setEditCategoryId(e.target.value)} 
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 disabled={isLoading}
               >
+                <option value="">{isBn ? "-- ক্যাটাগরি নির্বাচন করুন --" : "-- Select Category --"}</option>
                 {categories.map((c) => (
-                  <option key={c._id || c.id} value={c.name}>
+                  <option key={c._id || c.id} value={c._id || c.id}>
                     {isBn ? c.nameBn || c.name : c.name}
                   </option>
                 ))}
@@ -291,10 +394,122 @@ const EditModal: React.FC<EditModalProps> = ({
             </div>
           </div>
 
+          {/* Image Upload Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Main Image */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                {isBn ? 'প্রধান ছবি' : 'Main Image'}
+              </label>
+              <div className="rounded-xl border-2 border-dashed border-gray-300 p-6 text-center hover:border-indigo-400 transition-colors">
+                {mainImagePreview ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={mainImagePreview}
+                      alt="Main preview"
+                      className="h-32 w-32 object-cover rounded-xl mx-auto"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mainImagePreview && mainImagePreview !== product.image) {
+                          URL.revokeObjectURL(mainImagePreview);
+                        }
+                        setMainImageFile(null);
+                        setMainImagePreview(product.image || '');
+                      }}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                )}
+                <div className="mt-4">
+                  <label className="cursor-pointer bg-white font-semibold text-indigo-600 hover:text-indigo-500">
+                    <span>{isBn ? "নতুন ছবি আপলোড করুন" : "Upload new image"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleMainImageChange}
+                      className="sr-only"
+                      disabled={isLoading}
+                    />
+                  </label>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {isBn ? "সর্বোচ্চ 2MB" : "Max 2MB"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Multiple Images */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                {isBn ? 'একাধিক ছবি' : 'Multiple Images'}
+              </label>
+              <div className="rounded-xl border-2 border-dashed border-gray-300 p-6 text-center hover:border-indigo-400 transition-colors">
+                {multiImagePreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-2 justify-center mb-4 max-h-32 overflow-y-auto">
+                    {multiImagePreviews.map((url, idx) => {
+                      const isExisting = product.multiImages?.includes(url);
+                      return (
+                        <div key={idx} className="relative">
+                          <img
+                            src={url}
+                            alt={`Preview ${idx + 1}`}
+                            className="h-14 w-14 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isExisting) {
+                                removeExistingMultiImage(url);
+                              } else {
+                                removeNewMultiImage(idx);
+                              }
+                            }}
+                            className="absolute -top-2 -right-2 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                          {isExisting && (
+                            <div className="absolute -bottom-2 left-0 right-0 text-center">
+                              <span className="text-[10px] bg-blue-500 text-white px-1 rounded">
+                                {isBn ? 'বিদ্যমান' : 'Existing'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <label className="cursor-pointer bg-white font-semibold text-indigo-600 hover:text-indigo-500">
+                  <span>
+                    {isBn ? "নতুন ছবি যোগ করুন" : "Add new images"}
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleMultiImagesChange}
+                    className="sr-only"
+                    disabled={isLoading}
+                  />
+                </label>
+                <p className="text-xs text-gray-500 mt-2">
+                  {isBn ? "একাধিক ছবি নির্বাচন করতে পারেন (সর্বোচ্চ 2MB প্রতিটি)" : "Select multiple images (Max 2MB each)"}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="relative">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                {isBn ? 'সাইজ সম্পাদনা' : 'Edit Sizes'}
+                {isBn ? 'সাইজ' : 'Sizes'}
               </label>
               <button 
                 type="button" 
@@ -302,10 +517,13 @@ const EditModal: React.FC<EditModalProps> = ({
                 className="w-full flex items-center justify-between px-4 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-left text-sm hover:bg-gray-50 transition-colors"
                 disabled={isLoading}
               >
-                <span className="truncate">
-                  {editSizes.length > 0 
-                    ? editSizes.join(', ') 
-                    : (isBn ? 'সাইজ নির্বাচন করুন...' : 'Select sizes...')}
+                <span className="truncate text-gray-600">
+                  {editSizeIds.length > 0
+                    ? editSizeIds.map(id => {
+                        const size = sizes.find(s => (s._id || s.id) === id);
+                        return isBn ? size?.nameBn || size?.name : size?.name;
+                      }).filter(Boolean).join(", ")
+                    : (isBn ? "সাইজ নির্বাচন করুন..." : "Select sizes...")}
                 </span>
                 <ChevronDown className="w-4 h-4 text-gray-400" />
               </button>
@@ -328,14 +546,14 @@ const EditModal: React.FC<EditModalProps> = ({
                       <button 
                         key={size._id || size.id} 
                         type="button" 
-                        onClick={() => toggleSize(size.name)}
+                        onClick={() => toggleSize(size._id || size.id)}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                          editSizes.includes(size.name) 
+                          editSizeIds.includes(size._id || size.id) 
                             ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
                             : 'border-gray-200 hover:bg-gray-50'
                         }`}
                       >
-                        {size.name}
+                        {isBn ? size.nameBn || size.name : size.name}
                       </button>
                     ))}
                   </div>
@@ -345,7 +563,7 @@ const EditModal: React.FC<EditModalProps> = ({
 
             <div className="relative">
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                {isBn ? 'রং সম্পাদনা' : 'Edit Colors'}
+                {isBn ? 'রং' : 'Colors'}
               </label>
               <button 
                 type="button" 
@@ -353,10 +571,13 @@ const EditModal: React.FC<EditModalProps> = ({
                 className="w-full flex items-center justify-between px-4 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-left text-sm hover:bg-gray-50 transition-colors"
                 disabled={isLoading}
               >
-                <span className="truncate">
-                  {editColors.length > 0 
-                    ? editColors.join(', ') 
-                    : (isBn ? 'রং নির্বাচন করুন...' : 'Select colors...')}
+                <span className="truncate text-gray-600">
+                  {editColorIds.length > 0
+                    ? editColorIds.map(id => {
+                        const color = colors.find(c => (c._id || c.id) === id);
+                        return isBn ? color?.nameBn || color?.name : color?.name;
+                      }).filter(Boolean).join(", ")
+                    : (isBn ? "রং নির্বাচন করুন..." : "Select colors...")}
                 </span>
                 <ChevronDown className="w-4 h-4 text-gray-400" />
               </button>
@@ -375,19 +596,19 @@ const EditModal: React.FC<EditModalProps> = ({
                     </div>
                   </div>
                   <div className="max-h-48 overflow-y-auto p-2 flex flex-wrap gap-1.5">
-                    {filteredEditColors.map(col => (
+                    {filteredEditColors.map(color => (
                       <button 
-                        key={col._id || col.id} 
+                        key={color._id || color.id} 
                         type="button" 
-                        onClick={() => toggleColor(col.hex)}
+                        onClick={() => toggleColor(color._id || color.id)}
                         className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                          editColors.includes(col.hex) 
+                          editColorIds.includes(color._id || color.id) 
                             ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
                             : 'border-gray-200 hover:bg-gray-50'
                         }`}
                       >
-                        <span className="w-3 h-3 rounded-full border shadow-sm" style={{ backgroundColor: col.hex }} />
-                        {isBn ? col.nameBn || col.name : col.name}
+                        <span className="w-3 h-3 rounded-full border shadow-sm" style={{ backgroundColor: color.hex }} />
+                        {isBn ? color.nameBn || color.name : color.name}
                       </button>
                     ))}
                   </div>

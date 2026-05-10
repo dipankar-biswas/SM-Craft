@@ -6,13 +6,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { useRouter } from "next/navigation";
+import { toBengaliNumber } from "@/utils/helpers";
 
 const CheckoutPage = () => {
   const { isBn, cart, clearCart } = useApp();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   const subtotal = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
@@ -52,7 +53,7 @@ const CheckoutPage = () => {
       customerName: formData.name,
       customerAddress: formData.address,
       customerPhone: formData.phone,
-      items: cart.map(item => ({
+      items: cart.map((item) => ({
         productId: item.id,
         name: item.name,
         nameBn: item.nameBn || item.name,
@@ -60,6 +61,8 @@ const CheckoutPage = () => {
         quantity: item.quantity,
         selectedSize: item.selectedSize,
         selectedColor: item.selectedColor,
+        selectedColorBn: item.selectedColorBn,
+        selectedColorHex: item.selectedColorHex,
         image: item.image,
       })),
       subtotal: subtotal,
@@ -80,7 +83,7 @@ const CheckoutPage = () => {
 
       const data = await response.json();
       console.log(response.ok);
-      
+
       if (response.ok) {
         // Clear cart and redirect to success page
         console.log("Hi");
@@ -108,9 +111,14 @@ const CheckoutPage = () => {
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100 flex items-center gap-3 text-sm text-gray-500">
                 <i className="fas fa-headset text-2xl text-[#d4a373]"></i>
                 <div>
-                  অর্ডার সংক্রান্ত যেকোনো সাহায্যে কল করুন:{" "}
-                  <strong className="text-[#0f5c54]">01965-666777</strong> (সকাল
-                  ১০টা - রাত ৯টা)
+                  {isBn
+                    ? "অর্ডার সংক্রান্ত যেকোনো সাহায্যে কল করুন"
+                    : "Call for any help with your order."}
+                  :{" "}
+                  <strong className="text-[#0f5c54]">
+                    {isBn ? toBengaliNumber("01741571104") : "01741571104"}
+                  </strong>{" "}
+                  {isBn ? "(সকাল ১০টা - রাত ৯টা)" : "(10am - 9pm)"}
                 </div>
               </div>
 
@@ -119,7 +127,9 @@ const CheckoutPage = () => {
                 <div className="flex items-center gap-2 border-b border-amber-200 pb-3 mb-5">
                   <i className="fas fa-map-marked-alt text-[#d4a373] text-xl"></i>
                   <h2 className="text-xl md:text-2xl font-bold text-[#2c3e2f] font-serif tracking-tight">
-                    ঠিকানা ও ডেলিভারি তথ্য
+                    {isBn
+                      ? "ঠিকানা ও ডেলিভারি তথ্য"
+                      : "Address and delivery information"}
                   </h2>
                 </div>
 
@@ -132,22 +142,28 @@ const CheckoutPage = () => {
 
                 <p className="text-gray-500 text-sm mb-5 bg-amber-50 p-3 rounded-lg border-l-4 border-amber-400">
                   <i className="fas fa-info-circle text-amber-500 mr-2"></i>
-                  অর্ডার করার পর আমাদের প্রতিনিধি আপনার সাথে যোগাযোগ করবেন। সঠিক
-                  ঠিকানা ও মোবাইল নম্বর দিন।
+                  {isBn
+                    ? "অর্ডার করার পর আমাদের প্রতিনিধি আপনার সাথে যোগাযোগ করবেন। সঠিক ঠিকানা ও মোবাইল নম্বর দিন।"
+                    : "After placing your order, our representative will contact you. Please provide your correct address and mobile number."}
                 </p>
 
                 <div className="space-y-5">
                   {/* Full Name */}
                   <div>
                     <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
-                      আপনার নাম: <span className="text-red-500">*</span>
+                      {isBn ? "আপনার নাম" : "Your name"}:{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      placeholder="আপনার সম্পূর্ণ নাম লিখুন"
+                      placeholder={
+                        isBn
+                          ? "আপনার সম্পূর্ণ নাম লিখুন"
+                          : "Enter your full name."
+                      }
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
                       required
                       disabled={loading}
@@ -157,48 +173,59 @@ const CheckoutPage = () => {
                   {/* Complete Address */}
                   <div>
                     <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
-                      আপনার ঠিকানা: <span className="text-red-500">*</span>
+                      {isBn ? "আপনার ঠিকানা" : "Your address"}:{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       name="address"
                       value={formData.address}
                       onChange={handleInputChange}
                       rows={2}
-                      placeholder="বাড়ির নম্বর, রাস্তা, এলাকা, জেলা"
+                      placeholder={
+                        isBn
+                          ? "বাড়ির নম্বর, রাস্তা, এলাকা, জেলা"
+                          : "House number, street, area, district"
+                      }
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
                       required
                       disabled={loading}
                     />
                     <p className="text-xs text-gray-400 mt-1">
-                      <i className="fas fa-location-dot mr-1"></i> ডেলিভারি ঠিকানা
-                      সঠিকভাবে দিন
+                      <i className="fas fa-location-dot mr-1"></i>{" "}
+                      {isBn
+                        ? "ডেলিভারি ঠিকানা সঠিকভাবে দিন"
+                        : "Enter the delivery address correctly."}
                     </p>
                   </div>
 
                   {/* Mobile Number */}
                   <div>
                     <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
-                      মোবাইল নম্বর: <span className="text-red-500">*</span>
+                      {isBn ? "মোবাইল নম্বর" : "Mobile number"}:{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      placeholder="০১XXXXXXXXX"
+                      placeholder={isBn ? "০১XXXXXXXXX" : "01XXXXXXXXX"}
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
                       required
                       disabled={loading}
                     />
                     <p className="text-xs text-gray-400 mt-1">
-                      অর্ডার আপডেটের জন্য সক্রিয় নম্বর দিন
+                      {isBn
+                        ? "অর্ডার আপডেটের জন্য সক্রিয় নম্বর দিন"
+                        : "Provide active number for order updates"}
                     </p>
                   </div>
 
                   {/* Payment Method */}
                   <div>
                     <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
-                      পেমেন্ট পদ্ধতি: <span className="text-red-500">*</span>
+                      {isBn ? "পেমেন্ট পদ্ধতি" : "Payment methods"}:{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="paymentMethod"
@@ -207,22 +234,34 @@ const CheckoutPage = () => {
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
                       disabled={loading}
                     >
-                      <option value="cash_on_delivery">ক্যাশ অন ডেলিভারি (নগদ)</option>
-                      <option value="online">অনলাইন পেমেন্ট</option>
+                      <option value="cash_on_delivery">
+                        {isBn
+                          ? "ক্যাশ অন ডেলিভারি (নগদ)"
+                          : "Cash on Delivery (Cash)"}
+                      </option>
+                      <option value="online">
+                        {isBn ? "অনলাইন পেমেন্ট" : "Online payment"}
+                      </option>
                     </select>
                   </div>
 
                   {/* Special Instructions */}
                   <div>
                     <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
-                      বিশেষ নির্দেশনা (ঐচ্ছিক)
+                      {isBn
+                        ? "বিশেষ নির্দেশনা (ঐচ্ছিক)"
+                        : "Special instructions (optional)"}
                     </label>
                     <textarea
                       name="specialInstructions"
                       value={formData.specialInstructions}
                       onChange={handleInputChange}
                       rows={2}
-                      placeholder="যেমন: গেট নম্বর, ফ্ল্যাট নম্বর ইত্যাদি"
+                      placeholder={
+                        isBn
+                          ? "যেমন: গেট নম্বর, ফ্ল্যাট নম্বর ইত্যাদি"
+                          : "For example: Gate number, flat number etc."
+                      }
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
                       disabled={loading}
                     />
@@ -236,7 +275,8 @@ const CheckoutPage = () => {
               <div className="bg-white rounded-2xl shadow-md border border-gray-100 sticky top-6 overflow-hidden">
                 <div className="bg-gradient-to-r from-[#0a2f2a] to-[#1e4a46] px-5 py-4">
                   <h3 className="text-white font-bold text-xl flex items-center gap-2">
-                    <i className="fas fa-shopping-bag"></i> অর্ডার সামারি
+                    <i className="fas fa-shopping-bag"></i>{" "}
+                    {isBn ? "অর্ডার সামারি" : "Order Summary"}
                   </h3>
                 </div>
 
@@ -244,8 +284,8 @@ const CheckoutPage = () => {
                   {/* Product List */}
                   <div>
                     <div className="flex justify-between text-sm font-semibold text-gray-500 border-b border-gray-200 pb-2 mb-2">
-                      <span>পণ্য</span>
-                      <span>সাবটোটাল</span>
+                      <span>{isBn ? "পণ্য" : "Product"}</span>
+                      <span>{isBn ? "সাবটোটাল" : "Subtotal"}</span>
                     </div>
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                       {cart.map((product, idx) => (
@@ -265,26 +305,43 @@ const CheckoutPage = () => {
                                   href={`/product/${product.id}`}
                                   className="hover:text-[#0e6e78] transition-colors"
                                 >
-                                  {product.name}
+                                  {isBn ? product.nameBn : product.name}
                                 </Link>
                               </div>
                               <div className="text-xs text-gray-500">
-                                x {product.quantity}
+                                x{" "}
+                                {isBn
+                                  ? toBengaliNumber(product.quantity.toString())
+                                  : product.quantity}
                               </div>
-                              {(product.selectedSize || product.selectedColor) && (
+                              {(product.selectedSize ||
+                                product.selectedColor) && (
                                 <div className="flex gap-2 mt-1">
                                   {product.selectedSize && (
-                                    <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded">
-                                      Size: {product.selectedSize}
-                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-black">
+                                        {isBn ? "সাইজ" : "Size"}:
+                                      </span>
+                                      <span className="text-xs text-gray-400">{product.selectedSize}</span>
+                                    </div>
                                   )}
                                   {product.selectedColor && (
                                     <div className="flex items-center gap-1">
-                                      <span className="text-xs">Color:</span>
+                                      <span className="text-xs text-black">
+                                        {isBn ? "রং" : "Color"}:
+                                      </span>
                                       <span
                                         className="w-3 h-3 rounded-full border border-gray-300"
-                                        style={{ backgroundColor: product.selectedColor }}
+                                        style={{
+                                          backgroundColor:
+                                            product.selectedColorHex,
+                                        }}
                                       />
+                                      <span className="text-xs text-gray-400">
+                                        {isBn
+                                          ? product.selectedColorBn
+                                          : product.selectedColor}
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -292,7 +349,13 @@ const CheckoutPage = () => {
                             </div>
                           </div>
                           <span className="font-semibold ml-2">
-                            {taka(product.price * product.quantity)}
+                            {isBn
+                              ? toBengaliNumber(
+                                  taka(
+                                    product.price * product.quantity,
+                                  ).toString(),
+                                )
+                              : taka(product.price * product.quantity)}
                           </span>
                         </div>
                       ))}
@@ -302,25 +365,38 @@ const CheckoutPage = () => {
                   {/* Subtotal and Shipment */}
                   <div className="border-t border-gray-100 pt-3 space-y-2">
                     <div className="flex justify-between text-gray-800 font-medium">
-                      <span>সব পণ্যের মোট</span>
-                      <span>{taka(subtotal)}</span>
+                      <span>
+                        {isBn ? "সব পণ্যের মোট" : "Total of all products"}
+                      </span>
+                      <span>
+                        {isBn
+                          ? toBengaliNumber(taka(subtotal).toString())
+                          : taka(subtotal)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-gray-600">
                       <span>
-                        <i className="fas fa-shipping-fast"></i> ডেলিভারি চার্জ
+                        <i className="fas fa-shipping-fast"></i>{" "}
+                        {isBn ? "ডেলিভারি চার্জ" : "Delivery charges"}
                       </span>
                       <span>৳ 0</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold text-[#c15c3a] pt-2 border-t border-dashed border-gray-200 mt-1">
-                      <span>মোট পরিশোধ্য</span>
-                      <span>{taka(subtotal)}</span>
+                      <span>{isBn ? "মোট পরিশোধ্য" : "Total payable"}</span>
+                      <span>
+                        {isBn
+                          ? toBengaliNumber(taka(subtotal).toString())
+                          : taka(subtotal)}
+                      </span>
                     </div>
                   </div>
 
                   {/* Terms Note */}
                   <div className="text-[10px] text-gray-400 border-t border-gray-100 pt-3 text-center">
-                    <i className="fas fa-shield-alt"></i> অর্ডার কনফার্ম করার আগে
-                    দয়া করে ঠিকানা ও পণ্যের বিবরণ চেক করুন।
+                    <i className="fas fa-shield-alt"></i>{" "}
+                    {isBn
+                      ? "অর্ডার কনফার্ম করার আগে দয়া করে ঠিকানা ও পণ্যের বিবরণ চেক করুন।"
+                      : "Please check the address and product details before confirming the order."}
                   </div>
                 </div>
 
@@ -333,12 +409,12 @@ const CheckoutPage = () => {
                     {loading ? (
                       <>
                         <i className="fas fa-spinner fa-spin"></i>
-                        প্রক্রিয়াকরণ...
+                        {isBn ? "প্রক্রিয়াকরণ..." : "Processing..."}
                       </>
                     ) : (
                       <>
                         <i className="fas fa-check-circle"></i>
-                        অর্ডার কনফার্ম করুন
+                        {isBn ? "অর্ডার কনফার্ম করুন" : "Confirm order."}
                       </>
                     )}
                   </button>

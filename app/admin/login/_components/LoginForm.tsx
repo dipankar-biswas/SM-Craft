@@ -6,16 +6,10 @@ import { credentialLogin } from "@/app/actions";
 import { toast } from "sonner";
 
 export function SimpleLoginForm() {
-  const [role, setRole] = useState("Admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const gradients = {
-    Admin: "bg-gradient-to-br from-emerald-500 to-teal-600",
-    Agent: "bg-gradient-to-br from-indigo-500 to-purple-600",
-    User: "bg-gradient-to-br from-amber-500 to-orange-600",
-  };
 
   const [error, setError] = useState("");
   const router = useRouter();
@@ -60,32 +54,12 @@ export function SimpleLoginForm() {
         {/* Card */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
           {/* Header */}
-          <div className={`${gradients[role]} p-8 text-white text-center`}>
+          <div className={`p-8 text-white text-center bg-gradient-to-br from-emerald-500 to-teal-600`}>
             <div className="w-20 h-20 mx-auto rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl mb-4">
-              {role === "Admin" && "👑"}
-              {role === "Agent" && "👨‍💼"}
-              {role === "User" && "👤"}
+              👑
             </div>
-            <h1 className="text-3xl font-bold">Slots Bytes</h1>
-            <p className="opacity-90 mt-2">IVAC Slot Booking System</p>
+            <h1 className="text-3xl font-bold">Admin Login</h1>
 
-            {/* Role Switcher */}
-            <div className="flex mt-6 bg-white/20 backdrop-blur-sm rounded-full p-1">
-              {["Admin", "Agent", "User"].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-full transition ${
-                    role === r
-                      ? "bg-white text-slate-900"
-                      : "text-white/80 hover:text-white"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Form */}
@@ -121,7 +95,7 @@ export function SimpleLoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 px-4 rounded-xl font-semibold text-white ${gradients[role]} hover:shadow-lg transition-all duration-300 disabled:opacity-70`}
+              className={`w-full py-3 px-4 rounded-xl font-semibold text-white hover:shadow-lg transition-all duration-300 disabled:opacity-70  bg-gradient-to-br from-emerald-500 to-teal-600`}
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -129,7 +103,7 @@ export function SimpleLoginForm() {
                   Signing in...
                 </span>
               ) : (
-                `Sign in as ${role}`
+                `Sign in as Admin`
               )}
             </button>
 

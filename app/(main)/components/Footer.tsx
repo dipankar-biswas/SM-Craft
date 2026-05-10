@@ -30,8 +30,10 @@ import {
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { useApp } from "../context/AppContext";
+import { toBengaliNumber } from "@/utils/helpers";
+import Icon from "@/components/Icon";
 
-export const Footer = ({ settings }) => {
+export const Footer = ({ settings, categories }) => {
   const { isBn } = useApp();
   const logo = settings.footerLogo;
 
@@ -63,48 +65,24 @@ export const Footer = ({ settings }) => {
               </h2>
             </div>
             <ul className="space-y-3 mt-4">
-              <li>
-                <a
-                  href="#"
-                  className="group flex items-center gap-3 text-[#2c3e2f] font-medium transition-all duration-200 hover:text-[#b45f2b] hover:translate-x-1"
-                >
-                  <Palette className="w-5 h-5 text-[#d4a373]" />
-                  <span>Embroidery Panjabi</span>
-                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full ml-1">
+              {categories.slice(0, 4).map((cat) => (
+                <li key={cat.id}>
+                  <Link
+                    href={`${`/product-category/${cat.slug}`}`}
+                    className="group flex items-center gap-3 text-[#2c3e2f] font-medium transition-all duration-200 hover:text-[#b45f2b] hover:translate-x-1"
+                  >
+                    <Icon
+                      name={cat.icon}
+                      size={20}
+                      color={cat.iconColor || "#d4a373"}
+                    />
+                    <span>{isBn ? cat.nameBn : cat.name}</span>
+                    {/* <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full ml-1">
                     Best Seller
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="group flex items-center gap-3 text-[#2c3e2f] font-medium transition-all duration-200 hover:text-[#b45f2b] hover:translate-x-1"
-                >
-                  <Users className="w-5 h-5 text-[#d4a373]" />
-                  <span>Three Pieces</span>
-                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-1">
-                    Trending
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="group flex items-center gap-3 text-[#2c3e2f] font-medium transition-all duration-200 hover:text-[#b45f2b] hover:translate-x-1"
-                >
-                  <UserCog className="w-5 h-5 text-[#d4a373]" />
-                  <span>Premium Koti</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#"
-                  className="group flex items-center gap-3 text-[#2c3e2f] font-medium transition-all duration-200 hover:text-[#b45f2b] hover:translate-x-1"
-                >
-                  <Layers className="w-5 h-5 text-[#d4a373]" />
-                  <span>Koti & Panjabi Combo</span>
-                </a>
-              </li>
+                  </span> */}
+                  </Link>
+                </li>
+              ))}
             </ul>
             {/* <div className="pt-4 hidden md:block">
               <div className="inline-flex items-center gap-2 text-xs bg-[#f2ede5] px-3 py-1.5 rounded-full text-[#6b4c2c]">
@@ -188,12 +166,15 @@ export const Footer = ({ settings }) => {
               <div className="flex gap-3 items-center">
                 <Phone className="w-5 h-5 text-[#c17b42]" />
                 <div className="font-semibold">
-                  <a
-                    href={settings?.phone || "01741571104"}
+                  <Link
+                    href={`tel:${isBn ? toBengaliNumber(settings?.phone) : settings?.phone || (isBn ? toBengaliNumber("01741571104") : "01741571104")}`}
                     className="text-[#1e4a46] hover:text-[#d4a373] transition"
                   >
-                    {settings?.phone || "01741571104"}
-                  </a>
+                    {isBn
+                      ? toBengaliNumber(settings?.phone)
+                      : settings?.phone ||
+                        (isBn ? toBengaliNumber("01741571104") : "01741571104")}
+                  </Link>
                 </div>
               </div>
               {/* Social Links */}
@@ -287,10 +268,10 @@ export const Footer = ({ settings }) => {
             <Link
               href="https://imdipankarbiswas.com/"
               target="_blank"
-              className="hover:text-[#d4a373]"
+              className="hover:text-[#d4a373] underline"
               rel="noopener noreferrer"
             >
-              Dipankar
+              {isBn ? "দিপংকর" : "Dipankar"}
             </Link>
           </span>
         </div>

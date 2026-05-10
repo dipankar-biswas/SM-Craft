@@ -1,3 +1,4 @@
+//components/AddForm.tsx
 "use client";
 import React, { useState, useEffect } from "react";
 import {
@@ -71,10 +72,10 @@ const AddForm: React.FC<ProductFormProps> = ({
   const [nameBn, setNameBn] = useState<string>("");
   const [price, setPrice] = useState<number>(0);
   const [stock, setStock] = useState<number>(0);
-  const [category, setCategory] = useState<string>("");
-  const [brand, setBrand] = useState<string>("");
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [brandId, setBrandId] = useState<string>("");
+  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>([]);
+  const [selectedColorIds, setSelectedColorIds] = useState<string[]>([]);
   const [description, setDescription] = useState<string>("");
   const [descriptionBn, setDescriptionBn] = useState<string>("");
 
@@ -96,19 +97,25 @@ const AddForm: React.FC<ProductFormProps> = ({
   useEffect(() => {
     return () => {
       if (imagePreview) URL.revokeObjectURL(imagePreview);
-      multiImagePreviews.forEach(url => URL.revokeObjectURL(url));
+      multiImagePreviews.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [imagePreview, multiImagePreviews]);
 
   const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error(isBn ? "শুধু ইমেজ ফাইল সাপোর্টেড" : "Only image files are supported");
+      if (!file.type.startsWith("image/")) {
+        toast.error(
+          isBn ? "শুধু ইমেজ ফাইল সাপোর্টেড" : "Only image files are supported",
+        );
         return;
       }
       if (file.size > 2 * 1024 * 1024) {
-        toast.error(isBn ? "ইমেজ সাইজ 2MB এর কম হতে হবে" : "Image size must be less than 2MB");
+        toast.error(
+          isBn
+            ? "ইমেজ সাইজ 2MB এর কম হতে হবে"
+            : "Image size must be less than 2MB",
+        );
         return;
       }
       setImageFile(file);
@@ -118,26 +125,34 @@ const AddForm: React.FC<ProductFormProps> = ({
 
   const handleMultiImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        toast.error(isBn ? `শুধু ইমেজ ফাইল সাপোর্টেড: ${file.name}` : `Only image files supported: ${file.name}`);
+    const validFiles = files.filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(
+          isBn
+            ? `শুধু ইমেজ ফাইল সাপোর্টেড: ${file.name}`
+            : `Only image files supported: ${file.name}`,
+        );
         return false;
       }
       if (file.size > 2 * 1024 * 1024) {
-        toast.error(isBn ? `${file.name} সাইজ 2MB এর কম হতে হবে` : `${file.name} size must be less than 2MB`);
+        toast.error(
+          isBn
+            ? `${file.name} সাইজ 2MB এর কম হতে হবে`
+            : `${file.name} size must be less than 2MB`,
+        );
         return false;
       }
       return true;
     });
-    
+
     setMultiImages(validFiles);
     const urls = validFiles.map((file) => URL.createObjectURL(file));
     setMultiImagePreviews(urls);
   };
 
   const removeMultiImage = (index: number) => {
-    setMultiImages(prev => prev.filter((_, i) => i !== index));
-    setMultiImagePreviews(prev => {
+    setMultiImages((prev) => prev.filter((_, i) => i !== index));
+    setMultiImagePreviews((prev) => {
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
@@ -146,12 +161,18 @@ const AddForm: React.FC<ProductFormProps> = ({
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('video/')) {
-        toast.error(isBn ? "শুধু ভিডিও ফাইল সাপোর্টেড" : "Only video files are supported");
+      if (!file.type.startsWith("video/")) {
+        toast.error(
+          isBn ? "শুধু ভিডিও ফাইল সাপোর্টেড" : "Only video files are supported",
+        );
         return;
       }
       if (file.size > 50 * 1024 * 1024) {
-        toast.error(isBn ? "ভিডিও সাইজ 50MB এর কম হতে হবে" : "Video size must be less than 50MB");
+        toast.error(
+          isBn
+            ? "ভিডিও সাইজ 50MB এর কম হতে হবে"
+            : "Video size must be less than 50MB",
+        );
         return;
       }
       setVideoFile(file);
@@ -180,52 +201,75 @@ const AddForm: React.FC<ProductFormProps> = ({
     }
   };
 
-  const filteredSizes = sizes.filter((s) =>
-    s.name.toLowerCase().includes(sizeSearch.toLowerCase()),
+  // Get selected category and brand objects
+  const selectedCategory = categories.find(
+    (c) => c._id === categoryId || c.id === categoryId,
   );
-  const filteredColors = colors.filter(
-    (c) =>
-      c.name.toLowerCase().includes(colorSearch.toLowerCase()) ||
-      (c.nameBn && c.nameBn.includes(colorSearch)),
+  const selectedBrand = brands.find(
+    (b) => b._id === brandId || b.id === brandId,
   );
 
-  const toggleSize = (sizeName: string) => {
-    setSelectedSizes((prev) =>
-      prev.includes(sizeName)
-        ? prev.filter((s) => s !== sizeName)
-        : [...prev, sizeName],
+  const filteredSizes = sizes.filter((s) =>
+    (isBn ? s.nameBn || s.name : s.name)
+      .toLowerCase()
+      .includes(sizeSearch.toLowerCase()),
+  );
+
+  const filteredColors = colors.filter((c) =>
+    (isBn ? c.nameBn || c.name : c.name)
+      .toLowerCase()
+      .includes(colorSearch.toLowerCase()),
+  );
+
+  const toggleSize = (sizeId: string) => {
+    setSelectedSizeIds((prev) =>
+      prev.includes(sizeId)
+        ? prev.filter((id) => id !== sizeId)
+        : [...prev, sizeId],
     );
   };
 
   const toggleColor = (colorId: string) => {
-    setSelectedColors((prev) =>
+    setSelectedColorIds((prev) =>
       prev.includes(colorId)
-        ? prev.filter((c) => c !== colorId)
+        ? prev.filter((id) => id !== colorId)
         : [...prev, colorId],
     );
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!name.trim()) {
       setError(isBn ? "পণ্যের নাম দিন" : "Enter product name");
       return;
     }
-    
+
     if (!price || price <= 0) {
       setError(isBn ? "সঠিক মূল্য দিন" : "Enter valid price");
       return;
     }
-    
-    if (!category) {
-      setError(isBn ? "ক্যাটাগরি নির্বাচন করুন" : "Select category");
-      return;
+
+    const categoryExists = categories.some(
+      (c) => (c._id || c.id) === categoryId,
+    );
+    if (!categoryExists) {
+      toast.error(
+        isBn
+          ? "সিলেক্টেড ক্যাটাগরি বিদ্যমান নেই"
+          : "Selected category does not exist",
+      );
+      return false;
     }
-    
-    if (!brand) {
-      setError(isBn ? "ব্র্যান্ড নির্বাচন করুন" : "Select brand");
-      return;
+
+    const brandExists = brands.some((b) => (b._id || b.id) === brandId);
+    if (!brandExists) {
+      toast.error(
+        isBn
+          ? "সিলেক্টেড ব্র্যান্ড বিদ্যমান নেই"
+          : "Selected brand does not exist",
+      );
+      return false;
     }
 
     setIsLoading(true);
@@ -237,21 +281,21 @@ const AddForm: React.FC<ProductFormProps> = ({
     formData.append("nameBn", nameBn.trim() || name.trim());
     formData.append("price", price.toString());
     formData.append("stock", stock.toString());
-    formData.append("category", category);
-    formData.append("brand", brand);
-    formData.append("sizes", JSON.stringify(selectedSizes));
-    formData.append("colors", JSON.stringify(selectedColors));
+    formData.append("category", categoryId); // This is already the ID
+    formData.append("brand", brandId); // This is already the ID
+    formData.append("sizes", JSON.stringify(selectedSizeIds)); // These are IDs
+    formData.append("colors", JSON.stringify(selectedColorIds)); // These are IDs
     formData.append("description", description);
     formData.append("descriptionBn", descriptionBn || description);
-    
+
     if (imageFile) {
       formData.append("image", imageFile);
     }
-    
+
     multiImages.forEach((file) => {
       formData.append("multiImages", file);
     });
-    
+
     if (videoFile) {
       formData.append("video", videoFile);
     }
@@ -265,7 +309,10 @@ const AddForm: React.FC<ProductFormProps> = ({
       const data: ApiResponse = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || (isBn ? "পণ্য সংরক্ষণ করতে ব্যর্থ" : "Failed to save product"));
+        throw new Error(
+          data.error ||
+            (isBn ? "পণ্য সংরক্ষণ করতে ব্যর্থ" : "Failed to save product"),
+        );
       }
 
       if (data.success && data.data) {
@@ -276,10 +323,12 @@ const AddForm: React.FC<ProductFormProps> = ({
           nameBn: data.data.nameBn,
           price: data.data.price,
           stock: data.data.stock,
-          category: data.data.category,
-          brand: data.data.brand,
-          sizes: data.data.sizes,
-          colors: data.data.colors,
+          category: selectedCategory?.name || data.data.category,
+          categoryId: categoryId,
+          brand: selectedBrand?.name || data.data.brand,
+          brandId: brandId,
+          sizes: selectedSizeIds,
+          colors: selectedColorIds,
           description: data.data.description,
           descriptionBn: data.data.descriptionBn,
           image: data.data.image,
@@ -288,19 +337,24 @@ const AddForm: React.FC<ProductFormProps> = ({
           status: "Active",
           sales: 0,
         };
-        
+
         setProducts([newProduct, ...products]);
-        toast.success(data.message || (isBn ? "পণ্য সফলভাবে সংরক্ষণ হয়েছে!" : "Product saved successfully!"));
-        
+        toast.success(
+          data.message ||
+            (isBn
+              ? "পণ্য সফলভাবে সংরক্ষণ হয়েছে!"
+              : "Product saved successfully!"),
+        );
+
         // Reset form
         setName("");
         setNameBn("");
         setPrice(0);
         setStock(0);
-        setCategory("");
-        setBrand("");
-        setSelectedSizes([]);
-        setSelectedColors([]);
+        setCategoryId("");
+        setBrandId("");
+        setSelectedSizeIds([]);
+        setSelectedColorIds([]);
         setDescription("");
         setDescriptionBn("");
         setImageFile(null);
@@ -310,13 +364,18 @@ const AddForm: React.FC<ProductFormProps> = ({
         setVideoFile(null);
         setVideoName("");
         setSuccess(true);
-        
+
         setTimeout(() => setSuccess(false), 3000);
         router.refresh();
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      const errorMessage = error instanceof Error ? error.message : (isBn ? "পণ্য সংরক্ষণ করতে ব্যর্থ" : "Failed to save product");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : isBn
+            ? "পণ্য সংরক্ষণ করতে ব্যর্থ"
+            : "Failed to save product";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -421,8 +480,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                   {isBn ? "ব্র্যান্ড *" : "Brand *"}
                 </label>
                 <select
-                  value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
+                  value={brandId}
+                  onChange={(e) => setBrandId(e.target.value)}
                   className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm disabled:bg-slate-50"
                   disabled={isLoading}
                 >
@@ -432,7 +491,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                       : "-- Select Brand --"}
                   </option>
                   {brands.map((b) => (
-                    <option key={b._id || b.id} value={b.name}>
+                    <option key={b._id || b.id} value={b._id || b.id}>
                       {isBn ? b.nameBn || b.name : b.name}
                     </option>
                   ))}
@@ -443,8 +502,8 @@ const AddForm: React.FC<ProductFormProps> = ({
                   {isBn ? "ক্যাটাগরি *" : "Category *"}
                 </label>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
                   className="w-full px-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl text-sm disabled:bg-slate-50"
                   disabled={isLoading}
                 >
@@ -454,7 +513,7 @@ const AddForm: React.FC<ProductFormProps> = ({
                       : "-- Select Category --"}
                   </option>
                   {categories.map((c) => (
-                    <option key={c._id || c.id} value={c.name}>
+                    <option key={c._id || c.id} value={c._id || c.id}>
                       {isBn ? c.nameBn || c.name : c.name}
                     </option>
                   ))}
@@ -475,8 +534,16 @@ const AddForm: React.FC<ProductFormProps> = ({
                   disabled={isLoading}
                 >
                   <span className="truncate text-gray-600">
-                    {selectedSizes.length > 0
-                      ? selectedSizes.join(", ")
+                    {selectedSizeIds.length > 0
+                      ? selectedSizeIds
+                          .map((id) => {
+                            const size = sizes.find(
+                              (s) => (s._id || s.id) === id,
+                            );
+                            return size?.name;
+                          })
+                          .filter(Boolean)
+                          .join(", ")
                       : isBn
                         ? "সাইজ নির্বাচন করুন..."
                         : "Select sizes..."}
@@ -490,7 +557,9 @@ const AddForm: React.FC<ProductFormProps> = ({
                         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                         <input
                           type="text"
-                          placeholder={isBn ? "সাইজ খুঁজুন..." : "Search sizes..."}
+                          placeholder={
+                            isBn ? "সাইজ খুঁজুন..." : "Search sizes..."
+                          }
                           value={sizeSearch}
                           onChange={(e) => setSizeSearch(e.target.value)}
                           className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 rounded-lg"
@@ -502,10 +571,14 @@ const AddForm: React.FC<ProductFormProps> = ({
                         <button
                           key={size._id || size.id}
                           type="button"
-                          onClick={() => toggleSize(size.name)}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${selectedSizes.includes(size.name) ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-gray-200 hover:bg-gray-50"}`}
+                          onClick={() => toggleSize(size._id || size.id)}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                            selectedSizeIds.includes(size._id || size.id)
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                              : "border-gray-200 hover:bg-gray-50"
+                          }`}
                         >
-                          {size.name}
+                          {isBn ? size.nameBn || size.name : size.name}
                         </button>
                       ))}
                     </div>
@@ -524,8 +597,18 @@ const AddForm: React.FC<ProductFormProps> = ({
                   disabled={isLoading}
                 >
                   <span className="truncate text-gray-600">
-                    {selectedColors.length > 0
-                      ? selectedColors.join(", ")
+                    {selectedColorIds.length > 0
+                      ? selectedColorIds
+                          .map((id) => {
+                            const color = colors.find(
+                              (c) => (c._id || c.id) === id,
+                            );
+                            return isBn
+                              ? color?.nameBn || color?.name
+                              : color?.name;
+                          })
+                          .filter(Boolean)
+                          .join(", ")
                       : isBn
                         ? "রং নির্বাচন করুন..."
                         : "Select colors..."}
@@ -539,7 +622,9 @@ const AddForm: React.FC<ProductFormProps> = ({
                         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                         <input
                           type="text"
-                          placeholder={isBn ? "রং খুঁজুন..." : "Search colors..."}
+                          placeholder={
+                            isBn ? "রং খুঁজুন..." : "Search colors..."
+                          }
                           value={colorSearch}
                           onChange={(e) => setColorSearch(e.target.value)}
                           className="w-full pl-9 pr-3 py-1.5 text-sm bg-gray-50 rounded-lg"
@@ -547,18 +632,22 @@ const AddForm: React.FC<ProductFormProps> = ({
                       </div>
                     </div>
                     <div className="max-h-48 overflow-y-auto p-2 flex flex-wrap gap-1.5">
-                      {filteredColors.map((col) => (
+                      {filteredColors.map((color) => (
                         <button
-                          key={col._id || col.id}
+                          key={color._id || color.id}
                           type="button"
-                          onClick={() => toggleColor(col.hex)}
-                          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${selectedColors.includes(col.hex) ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-gray-200 hover:bg-gray-50"}`}
+                          onClick={() => toggleColor(color._id || color.id)}
+                          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                            selectedColorIds.includes(color._id || color.id)
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                              : "border-gray-200 hover:bg-gray-50"
+                          }`}
                         >
                           <span
                             className="w-3 h-3 rounded-full border"
-                            style={{ backgroundColor: col.hex }}
+                            style={{ backgroundColor: color.hex }}
                           />
-                          {isBn ? col.nameBn || col.name : col.name}
+                          {isBn ? color.nameBn || color.name : color.name}
                         </button>
                       ))}
                     </div>
@@ -738,7 +827,9 @@ const AddForm: React.FC<ProductFormProps> = ({
                 {videoName && (
                   <div className="flex items-center justify-between gap-2 mb-3 px-3 py-2 bg-indigo-50 rounded-lg">
                     <Video className="w-4 h-4 text-indigo-600" />
-                    <span className="text-xs text-indigo-600 flex-1 truncate">{videoName}</span>
+                    <span className="text-xs text-indigo-600 flex-1 truncate">
+                      {videoName}
+                    </span>
                     <button
                       type="button"
                       onClick={removeVideo}
@@ -773,10 +864,10 @@ const AddForm: React.FC<ProductFormProps> = ({
               setNameBn("");
               setPrice(0);
               setStock(0);
-              setCategory("");
-              setBrand("");
-              setSelectedSizes([]);
-              setSelectedColors([]);
+              setCategoryId("");
+              setBrandId("");
+              setSelectedSizeIds([]);
+              setSelectedColorIds([]);
               setDescription("");
               setDescriptionBn("");
               setImageFile(null);

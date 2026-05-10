@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from "react";
 
 // Define types for product
 interface Product {
@@ -39,14 +45,15 @@ interface CartItem extends Product {
 // Define context type
 interface AppContextType {
   // Language
-  language: 'en' | 'bn';
-  setLanguage: (value: 'en' | 'bn') => void;
+  language: "en" | "bn";
+  setLanguage: (value: "en" | "bn") => void;
   isBn: boolean;
+  changeLanguage: (value: string) => void;
 
   // Search
   search: string;
   setSearch: (value: string) => void;
-  
+
   // Wishlist
   wishlist: Product[];
   setWishlist: (value: Product[]) => void;
@@ -55,7 +62,7 @@ interface AppContextType {
   addToWishlist: (product: Product) => void;
   removeFromWishlist: (id: number) => void;
   isInWishlist: (id: number) => boolean;
-  
+
   // Compare
   compareList: Product[];
   setCompareList: (value: Product[]) => void;
@@ -65,7 +72,7 @@ interface AppContextType {
   removeFromCompare: (id: number) => void;
   isInCompare: (id: number) => boolean;
   clearAllCompare: () => void;
-  
+
   // Cart
   cart: CartItem[];
   setCart: (value: CartItem[]) => void;
@@ -75,7 +82,7 @@ interface AppContextType {
   clearCart: () => void; // Add clearCart function
   cartTotal: number;
   cartCount: number;
-  
+
   // Quick View
   activeProduct: Product | null;
   setActiveProduct: (value: Product | null) => void;
@@ -87,9 +94,19 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+  const [language, setLanguage] = useState<"en" | "bn">("en");
+  const isBn = language === "bn";
+  useEffect(() => {
+    const storedLang = localStorage.getItem("language");
+    if (storedLang) {
+      setLanguage(storedLang);
+    }
+  }, []);
 
-  const [language, setLanguage] = useState<'en' | 'bn'>('en');
-  const isBn = language === 'bn';
+  const changeLanguage = (newLang) => {
+    setLanguage(newLang);
+    localStorage.setItem("language", newLang);
+  };
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState<string>("");
@@ -100,42 +117,68 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState<boolean>(false);
 
-  const addToCart = (product: Product) => {    
+  const addToCart = (product: Product) => {
+    console.log(product);
+
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
+      let newCart;
+
       if (existing) {
-        return prev.map((item) =>
+        newCart = prev.map((item) =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
-            : item
+            : item,
         );
+      } else {
+        const qtyNum = product.quantity ? Number(product.quantity) : 1;
+        if (isNaN(qtyNum) || qtyNum <= 0) {
+          return prev; // Don't add if quantity is invalid
+        }
+        newCart = [...prev, { ...product, quantity: qtyNum }];
       }
-      const qtyNum = product.quantity ? Number(product.quantity) : 1;
-      if (isNaN(qtyNum) || qtyNum <= 0) {
-        return prev; // Don't add if quantity is invalid
-      }
-      return [...prev, { ...product, quantity: qtyNum }];
+
+      // Save to localStorage
+      localStorage.setItem("cart", JSON.stringify(newCart));
+      return newCart;
     });
   };
 
   const removeFromCart = (id: number) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
+    setCart((prev) => {
+      const newCart = prev.filter((item) => item.id !== id);
+      // Save to localStorage
+      localStorage.setItem("cart", JSON.stringify(newCart));
+      return newCart;
+    });
   };
 
   const updateQuantity = (id: number, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(id);
     } else {
-      setCart((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, quantity } : item))
-      );
+      setCart((prev) => {
+        const newCart = prev.map((item) =>
+          item.id === id ? { ...item, quantity } : item,
+        );
+        // Save to localStorage
+        localStorage.setItem("cart", JSON.stringify(newCart));
+        return newCart;
+      });
     }
   };
 
-  // Clear all items from cart
   const clearCart = () => {
     setCart([]);
+    localStorage.setItem("cart", JSON.stringify([]));
   };
+
+  useEffect(() => {
+    const saved = localStorage.getItem("cart");
+    if (saved) {
+      setCart(JSON.parse(saved));
+    }
+  }, []);
 
   const addToWishlist = (product: Product) => {
     setWishlist((prev) => {
@@ -153,11 +196,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const cartTotal = cart.reduce(
     (total, item) => total + item.price * item.quantity,
-    0
+    0,
   );
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
 
-  const isInCompare = (id: number) => compareList.some((item) => item.id === id);
+  const isInCompare = (id: number) =>
+    compareList.some((item) => item.id === id);
 
   const addToCompare = (product: Product) => {
     if (!isInCompare(product.id) && compareList.length < 4) {
@@ -180,10 +224,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         language,
         setLanguage,
         isBn,
+        changeLanguage,
 
         search,
         setSearch,
-        
+
         wishlist,
         setWishlist,
         isWishlistOpen,

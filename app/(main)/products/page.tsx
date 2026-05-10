@@ -1,4 +1,4 @@
-import { getProducts } from "@/queries/datalist";
+import { getProducts } from "@/queries/products";
 import Breadcrumb from "../components/product/Breadcrumb";
 import { ProductCard } from "../components/ProductCard";
 

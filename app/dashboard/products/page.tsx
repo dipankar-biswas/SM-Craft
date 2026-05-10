@@ -1,3 +1,4 @@
+//page.tsx
 import { getAllProducts } from "@/queries/products";
 import { PageSet } from "./PageSet";
 import { getCategories } from "@/queries/categories";

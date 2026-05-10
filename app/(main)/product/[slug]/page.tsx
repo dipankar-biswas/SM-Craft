@@ -1,17 +1,22 @@
-
 import Breadcrumb from "../../components/product/Breadcrumb";
 import ProductDetail from "../../components/product/ProductDetail";
 import RelatedProducts from "../../components/product/RelatedProducts";
-import { getProductDetails, getProductsByCategory } from "@/queries/products";
+import {
+  getCategoryRelatedProducts,
+  getProductBySlug,
+} from "@/queries/products";
 
 const ProductDetailsPage = async ({ params }) => {
   const resolvedParams = await params;
-  const id = resolvedParams.id;
+  const slug = resolvedParams.slug;
 
-  const product = await getProductDetails(id);
-  
-  const products = await getProductsByCategory(product.category);
-  products.splice(products.findIndex(p => p.id == product.id), 1); // Remove current product from related products
+  const product = await getProductBySlug(slug);
+
+  const products = await getCategoryRelatedProducts(product.categoryId);
+  products.splice(
+    products.findIndex((p) => p.id == product.id),
+    1,
+  ); // Remove current product from related products
 
   return (
     <div className="container mx-auto w-full pb-12">
@@ -19,7 +24,7 @@ const ProductDetailsPage = async ({ params }) => {
         {/* Main Area */}
         <div className="flex-1 min-w-0">
           {/* Breadcrumb */}
-          <Breadcrumb title={product.name} />
+          <Breadcrumb title={product?.name} titleBn={product?.nameBn} />
 
           {/* Product Detail Section */}
           <div className="bg-white border border-gray-200 rounded p-5">

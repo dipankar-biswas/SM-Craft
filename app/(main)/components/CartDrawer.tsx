@@ -3,9 +3,10 @@ import { Truck, X, ShoppingBag, Trash2, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { taka } from "@/utils/currency";
 import { useApp } from "../context/AppContext";
+import { toBengaliNumber } from "@/utils/helpers";
 
 export const CartDrawer = ({ open, onClose }) => {
-  const { cart, removeFromCart, updateQuantity } = useApp();
+  const { isBn, cart, removeFromCart, updateQuantity } = useApp();
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   
   const handleQuantityChange = (itemId, newQuantity) => {
@@ -28,7 +29,7 @@ export const CartDrawer = ({ open, onClose }) => {
         <div className="flex items-center justify-between border-b border-gray-200 p-5 bg-white sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <ShoppingBag size={20} className="text-[#095059]" />
-            <h2 className="text-xl font-bold">Shopping Cart</h2>
+            <h2 className="text-xl font-bold">{isBn ? 'শপিং কার্ট' : 'Shopping Cart'}</h2>
             <span className="bg-gray-100 text-gray-600 text-sm px-2 py-0.5 rounded-full">
               {cart.length}
             </span>
@@ -57,12 +58,12 @@ export const CartDrawer = ({ open, onClose }) => {
               <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                 <ShoppingBag size={40} className="text-gray-400" />
               </div>
-              <p className="text-gray-500 mb-4">Your cart is empty</p>
+              <p className="text-gray-500 mb-4">{isBn ? 'আপনার কার্ট খালি আছে' : 'Your cart is empty'}</p>
               <button 
                 onClick={onClose}
                 className="text-[#095059] font-medium hover:underline"
               >
-                Continue Shopping →
+                {isBn ? 'কেনাকাটা চালিয়ে যান' : 'Continue Shopping'} →
               </button>
             </div>
           ) : (
@@ -78,13 +79,29 @@ export const CartDrawer = ({ open, onClose }) => {
                   
                   {/* Product Details */}
                   <div className="flex-1 min-w-0">
-                    <Link href={`/product/${item.id}`} onClick={onClose} className="font-medium text-gray-800 hover:text-[#095059] transition-colors duration-200 mb-1 line-clamp-2 text-sm">
-                      {item.name}
-                    </Link>
+                    <div>
+                      <Link href={`/product/${item.id}`} onClick={onClose} className="font-medium text-gray-800 hover:text-[#095059] transition-colors duration-200 line-clamp-2 text-sm">
+                        {isBn ? item.nameBn : item.name}
+                      </Link>
+                      <div>
+                        <span className="text-xs font-semibold text-gray-800 mb-2">
+                          {isBn ? 'রং' : 'Color'}:{" "}
+                          <span className="text-orange-600 font-normal">
+                            {isBn ? item.selectedColorBn : item.selectedColor}
+                          </span>
+                        </span>
+                        <span className="text-xs font-semibold text-gray-800 ml-3 mb-2">
+                          {isBn ? 'সাইজ' : 'Size'}:{" "}
+                          <span className="text-orange-600 font-normal">
+                            {item.selectedSize}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
                     <p className="text-[#095059] font-bold text-md">
-                      {taka(item.price)}
+                      {isBn ? toBengaliNumber(taka(item.price)) : taka(item.price)}
                       <span className="text-[12px] text-gray-400 font-normal ml-1">
-                        x {item.quantity}
+                        x {isBn ? toBengaliNumber(item.quantity.toString()) : item.quantity}
                       </span>
                     </p>
                     
@@ -97,7 +114,7 @@ export const CartDrawer = ({ open, onClose }) => {
                         <Minus size={12} />
                       </button>
                       <span className="w-4 text-center text-sm font-medium">
-                        {item.quantity}
+                        {isBn ? toBengaliNumber(item.quantity.toString()) : item.quantity}
                       </span>
                       <button
                         onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
@@ -127,9 +144,9 @@ export const CartDrawer = ({ open, onClose }) => {
             {/* Subtotal */}
             <div className="p-3 bg-gray-50">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 font-semibold">Subtotal</span>
+                <span className="text-gray-600 font-semibold">{isBn ? 'উপমোট' : 'Subtotal'}</span>
                 <span className="text-xl font-bold text-[#095059]">
-                  {taka(subtotal)}
+                  {isBn ? toBengaliNumber(taka(subtotal)) : taka(subtotal)}
                 </span>
               </div>
               {/* <p className="text-xs text-gray-500">
@@ -145,14 +162,14 @@ export const CartDrawer = ({ open, onClose }) => {
                   onClick={onClose} 
                   className="border-2 border-gray-800 text-gray-800 font-medium py-1 px-2 rounded-lg text-center hover:bg-[#0e6e78] hover:text-white transition-all duration-200"
                 >
-                  View Cart
+                  {isBn ? 'কার্ট দেখুন' : 'View Cart'}
                 </Link>
                 <Link 
                   href="/checkout" 
                   onClick={onClose} 
                   className="bg-[#095059] text-white font-medium py-1 px-2 rounded-lg text-center hover:bg-[#0e6e78] transition-all duration-200 shadow-md hover:shadow-lg"
                 >
-                  Checkout
+                  {isBn ? 'চেকআউট' : 'Checkout'}
                 </Link>
               </div>
               

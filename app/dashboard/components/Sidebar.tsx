@@ -13,6 +13,8 @@ import {
   ListOrdered,
   Sliders,
   PanelTopDashed,
+  Mail,
+  GalleryHorizontal,
 } from 'lucide-react';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,7 +36,9 @@ export const Sidebar = ({ user, mobileMenuOpen, setMobileMenuOpen }) => {
       { url: 'sizes-colors', name: isBn ? 'সাইজ ও রঙ' : 'Sizes & Colors', icon: Ruler },
       { url: 'orders', name: isBn ? 'অর্ডার' : 'Orders', icon: ListOrdered },
       { url: 'banners', name: isBn ? 'ব্যানার' : 'Banner', icon: Sliders },
+      { url: 'gallery', name: isBn ? 'গ্যালারি' : 'Gallery', icon: GalleryHorizontal },
       { url: 'pages', name: isBn ? 'পৃষ্ঠাগুলি' : 'Pages', icon: PanelTopDashed },
+      { url: 'contact', name: isBn ? 'যোগাযোগ' : 'Contact', icon: Mail },
       { url: 'settings', name: isBn ? 'সেটিংস' : 'Settings', icon: Ruler },
     ];
 

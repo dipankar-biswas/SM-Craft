@@ -98,7 +98,7 @@ export const Banner = () => {
                   poster={banner.bgImage || undefined}
                 >
                   <source src={banner.bgVideo} type="video/mp4" />
-                  Your browser does not support the video tag.
+                  {isBn ? 'আপনার ব্রাউজার ভিডিও ট্যাগটি সমর্থন করে না।' : 'Your browser does not support the video tag.'}
                 </video>
               ) : (
                 /* Image Background (fallback) */

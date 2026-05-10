@@ -4,7 +4,7 @@ import { HomeProduct } from "./components/HomeProduct";
 
 export const Home = async() => {
   const categorywiseproducts = await getCategoriesWiseProducts();
-
+  
 
   return (
     <>

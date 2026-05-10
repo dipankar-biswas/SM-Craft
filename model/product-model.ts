@@ -1,15 +1,15 @@
-// app/model/product-model.ts
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IProduct extends Document {
   name: string;
   nameBn: string;
   price: number;
+  oldPrice: number;
   stock: number;
-  category: string;
-  brand: string;
-  sizes: string[];
-  colors: string[];
+  categoryId: mongoose.Types.ObjectId;  // Changed to ID reference
+  brandId: mongoose.Types.ObjectId;      // Changed to ID reference
+  sizeIds: mongoose.Types.ObjectId[];    // Changed to ID references
+  colorIds: mongoose.Types.ObjectId[];   // Changed to ID references
   description: string;
   descriptionBn: string;
   image: string;
@@ -40,28 +40,33 @@ const productSchema = new Schema<IProduct>(
       required: true,
       min: 0,
     },
+    oldPrice: {
+      type: Number,
+      required: false,
+      min: 0,
+    },
     stock: {
       type: Number,
       default: 0,
       min: 0,
     },
-    category: {
-      type: String,
+    categoryId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Category',
       required: true,
-      trim: true,
     },
-    brand: {
-      type: String,
+    brandId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Brand',
       required: true,
-      trim: true,
     },
-    sizes: [{
-      type: String,
-      trim: true,
+    sizeIds: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Size',
     }],
-    colors: [{
-      type: String,
-      trim: true,
+    colorIds: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Color',
     }],
     description: {
       type: String,
@@ -107,7 +112,7 @@ const productSchema = new Schema<IProduct>(
 
 // Create indexes for better search performance
 productSchema.index({ name: 1, slug: 1 });
-productSchema.index({ category: 1, brand: 1 });
+productSchema.index({ categoryId: 1, brandId: 1 });
 productSchema.index({ price: 1 });
 productSchema.index({ created_at: -1 });
 

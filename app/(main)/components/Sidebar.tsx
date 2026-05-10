@@ -7,7 +7,7 @@ import Icon from "@/components/Icon";
 import { useApp } from "../context/AppContext";
 
 export const Sidebar = ({ isExpanded, setIsExpanded, categories }) => {
-  const { language, setLanguage, isBn } = useApp();
+  const { language, isBn, changeLanguage } = useApp();
 
   return (
     <>
@@ -123,7 +123,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded, categories }) => {
             className={`grid grid-cols-2 gap-1 p-1 bg-slate-50 rounded-lg border border-slate-100 ${!isExpanded && "hidden"}`}
           >
             <button
-              onClick={() => setLanguage("en")}
+               onClick={() => changeLanguage(language === 'bn' ? 'en' : 'bn')}
               className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
                 language === "en"
                   ? "bg-white text-slate-900 shadow-sm"
@@ -133,7 +133,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded, categories }) => {
               English
             </button>
             <button
-              onClick={() => setLanguage("bn")}
+               onClick={() => changeLanguage(language === 'bn' ? 'en' : 'bn')}
               className={`py-1.5 text-xs font-semibold rounded-md transition-all ${
                 language === "bn"
                   ? "bg-white text-slate-900 shadow-sm"
@@ -148,7 +148,7 @@ export const Sidebar = ({ isExpanded, setIsExpanded, categories }) => {
           {!isExpanded && (
             <div className="flex justify-center">
               <button
-                onClick={() => setLanguage(language === "en" ? "bn" : "en")}
+                onClick={() => changeLanguage(language === "en" ? "bn" : "en")}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
                 title={
                   language === "en" ? "Switch to বাংলা" : "Switch to English"

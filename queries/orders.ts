@@ -416,6 +416,140 @@ export async function getOrdersByPhoneNumber(phone: string): Promise<OrderRespon
   }
 }
 
+// Get order status with timeline
+export async function getOrderStatusWithTimeline(orderId: string): Promise<OrderStatusResponse | null> {
+  try {
+    const order = await Order.findOne({ orderId }).lean();
+    if (!order) return null;
+    
+    // Create status timeline based on order status and timestamps
+    const timeline = createOrderTimeline(order);
+    
+    return {
+      order: {
+        ...order,
+        _id: order._id.toString(),
+      } as OrderResponse,
+      timeline,
+      currentStatus: order.orderStatus,
+    };
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Failed to get order status");
+  }
+}
+
+// Helper function to create order timeline
+function createOrderTimeline(order: any) {
+  const timeline = [];
+  
+  // Order placed
+  if (order.createdAt) {
+    timeline.push({
+      status: "pending",
+      title: "অর্ডার গ্রহণ করা হয়েছে",
+      titleEn: "Order Placed",
+      description: "আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে",
+      descriptionEn: "Your order has been successfully placed",
+      date: order.createdAt,
+      completed: true,
+    });
+  }
+  
+  // Order confirmed (if status is confirmed or beyond)
+  if (["confirmed", "processing", "shipped", "delivered"].includes(order.orderStatus)) {
+    timeline.push({
+      status: "confirmed",
+      title: "অর্ডার কনফার্ম করা হয়েছে",
+      titleEn: "Order Confirmed",
+      description: "আপনার অর্ডারটি কনফার্ম করা হয়েছে",
+      descriptionEn: "Your order has been confirmed",
+      date: order.updatedAt,
+      completed: true,
+    });
+  } else {
+    timeline.push({
+      status: "confirmed",
+      title: "অর্ডার কনফার্ম করা হয়েছে",
+      titleEn: "Order Confirmed",
+      description: "আপনার অর্ডারটি কনফার্ম করা হবে",
+      descriptionEn: "Your order will be confirmed soon",
+      date: null,
+      completed: false,
+    });
+  }
+  
+  // Processing
+  if (["processing", "shipped", "delivered"].includes(order.orderStatus)) {
+    timeline.push({
+      status: "processing",
+      title: "অর্ডার প্রক্রিয়াকরণ",
+      titleEn: "Processing",
+      description: "আপনার অর্ডারটি প্রস্তুত করা হচ্ছে",
+      descriptionEn: "Your order is being prepared",
+      date: order.updatedAt,
+      completed: true,
+    });
+  } else {
+    timeline.push({
+      status: "processing",
+      title: "অর্ডার প্রক্রিয়াকরণ",
+      titleEn: "Processing",
+      description: "আপনার অর্ডারটি প্রক্রিয়াকরণ করা হবে",
+      descriptionEn: "Your order will be processed",
+      date: null,
+      completed: false,
+    });
+  }
+  
+  // Shipped
+  if (["shipped", "delivered"].includes(order.orderStatus)) {
+    timeline.push({
+      status: "shipped",
+      title: "অর্ডার ডেলিভারির জন্য পাঠানো হয়েছে",
+      titleEn: "Shipped",
+      description: "আপনার অর্ডারটি ডেলিভারির জন্য পাঠানো হয়েছে",
+      descriptionEn: "Your order has been shipped",
+      date: order.updatedAt,
+      completed: true,
+    });
+  } else {
+    timeline.push({
+      status: "shipped",
+      title: "অর্ডার ডেলিভারির জন্য পাঠানো হয়েছে",
+      titleEn: "Shipped",
+      description: "আপনার অর্ডারটি ডেলিভারির জন্য পাঠানো হবে",
+      descriptionEn: "Your order will be shipped",
+      date: null,
+      completed: false,
+    });
+  }
+  
+  // Delivered
+  if (order.orderStatus === "delivered") {
+    timeline.push({
+      status: "delivered",
+      title: "অর্ডার ডেলিভারি সম্পন্ন",
+      titleEn: "Delivered",
+      description: "আপনার অর্ডারটি সফলভাবে ডেলিভারি করা হয়েছে",
+      descriptionEn: "Your order has been delivered",
+      date: order.updatedAt,
+      completed: true,
+    });
+  } else {
+    timeline.push({
+      status: "delivered",
+      title: "অর্ডার ডেলিভারি সম্পন্ন",
+      titleEn: "Delivered",
+      description: "আপনার অর্ডারটি ডেলিভারি করা হবে",
+      descriptionEn: "Your order will be delivered",
+      date: null,
+      completed: false,
+    });
+  }
+  
+  return timeline;
+}
+
 export interface OrderStatistics {
   totalOrders: number;
   pendingOrders: number;
@@ -428,4 +562,20 @@ export interface OrderStatistics {
   todayOrders: number;
   thisWeekOrders: number;
   thisMonthOrders: number;
+}
+
+export interface OrderStatusResponse {
+  order: OrderResponse;
+  timeline: OrderTimeline[];
+  currentStatus: string;
+}
+
+export interface OrderTimeline {
+  status: string;
+  title: string;
+  titleEn: string;
+  description: string;
+  descriptionEn: string;
+  date: Date | null;
+  completed: boolean;
 }

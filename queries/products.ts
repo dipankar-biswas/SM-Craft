@@ -1,29 +1,29 @@
-// app/queries/products.ts
-import { Product } from "@/model/product-model";
+import { Product, IProduct } from "@/model/product-model";
+import { Category } from "@/model/category-model";
+import { Brand } from "@/model/brand-model";
+import { Size } from "@/model/size-model";
+import { Color } from "@/model/color-model";
 import { replaceMongoIdInArray, replaceMongoIdInObject } from "@/lib/convertData";
+import mongoose from "mongoose";
 import { getCategories } from "./categories";
 
 // Types
 export interface ProductData {
-  _id?: string;
   name: string;
   nameBn: string;
   price: number;
   stock: number;
-  category: string;
-  brand: string;
-  sizes: string[];
-  colors: string[];
+  categoryId: string;
+  brandId: string;
+  sizeIds: string[];
+  colorIds: string[];
   description: string;
   descriptionBn: string;
   image?: string;
   multiImages?: string[];
   video?: string;
-  slug?: string;
+  slug: string;
   active?: boolean;
-  sales?: number;
-  created_at?: Date;
-  updated_at?: Date;
 }
 
 export interface ProductResponse {
@@ -32,10 +32,18 @@ export interface ProductResponse {
   nameBn: string;
   price: number;
   stock: number;
-  category: string;
-  brand: string;
-  sizes: string[];
-  colors: string[];
+  categoryId: string;
+  categoryName: string;  // Populated field
+  categoryNameBn: string; // Populated field
+  brandId: string;
+  brandName: string;     // Populated field
+  brandNameBn: string;   // Populated field
+  sizeIds: string[];
+  sizeNames: string[];   // Populated field
+  colorIds: string[];
+  colorNames: string[];  // Populated field
+  colorNamesBn: string[];  // Populated field
+  colorHexes: string[];  // Populated field
   description: string;
   descriptionBn: string;
   image: string;
@@ -60,23 +68,90 @@ export interface CategoryWithProducts {
   products: ProductResponse[];
 }
 
+// Helper function to populate product data
+async function populateProduct(product: any): Promise<any> {
+  if (!product) return null;
+  
+  const productObj = product.toObject ? product.toObject() : product;
+  
+  // Get category details
+  let categoryName = '', categoryNameBn = '';
+  if (productObj.categoryId) {
+    const category = await Category.findById(productObj.categoryId).lean();
+    if (category) {
+      categoryName = category.name;
+      categoryNameBn = category.nameBn || category.name;
+    }
+  }
+  
+  // Get brand details
+  let brandName = '', brandNameBn = '';
+  if (productObj.brandId) {
+    const brand = await Brand.findById(productObj.brandId).lean();
+    if (brand) {
+      brandName = brand.name;
+      brandNameBn = brand.nameBn || brand.name;
+    }
+  }
+  
+  // Get size details
+  const sizeNames: string[] = [];
+  if (productObj.sizeIds && productObj.sizeIds.length > 0) {
+    const sizes = await Size.find({ _id: { $in: productObj.sizeIds } }).lean();
+    sizeNames.push(...sizes.map(s => s.name));
+  }
+  
+  // Get color details
+  const colorNames: string[] = [];
+  const colorNamesBn: string[] = [];
+  const colorHexes: string[] = [];
+  if (productObj.colorIds && productObj.colorIds.length > 0) {
+    const colors = await Color.find({ _id: { $in: productObj.colorIds } }).lean();
+    colors.forEach(c => {
+      colorNames.push(c.name);
+      colorNamesBn.push(c.nameBn);
+      colorHexes.push(c.hex);
+    });
+  }
+  
+  return {
+    ...productObj,
+    _id: productObj._id.toString(),
+    categoryId: productObj.categoryId?.toString(),
+    categoryName,
+    categoryNameBn,
+    brandId: productObj.brandId?.toString(),
+    brandName,
+    brandNameBn,
+    sizeIds: productObj.sizeIds?.map((id: any) => id.toString()) || [],
+    sizeNames,
+    colorIds: productObj.colorIds?.map((id: any) => id.toString()) || [],
+    colorNames,
+    colorNamesBn,
+    colorHexes,
+  };
+}
+
 // Get all products
 export async function getAllProducts(filter: any = {}): Promise<ProductResponse[]> {
   const products = await Product.find(filter).sort({ created_at: -1 }).lean();
-  return replaceMongoIdInArray(products) as ProductResponse[];
+  const populatedProducts = await Promise.all(products.map(p => populateProduct(p)));
+  return populatedProducts;
 }
 
 // Get active products only
 export async function getProducts(filter: any = {}): Promise<ProductResponse[]> {
   const products = await Product.find({ active: true, ...filter }).sort({ created_at: -1 }).lean();
-  return replaceMongoIdInArray(products) as ProductResponse[];
+  const populatedProducts = await Promise.all(products.map(p => populateProduct(p)));
+  return populatedProducts;
 }
 
 // Get product details by ID
 export async function getProductDetails(productId: string): Promise<ProductResponse | null> {
   try {
     const product = await Product.findById(productId).lean();
-    return replaceMongoIdInObject(product) as ProductResponse | null;
+    if (!product) return null;
+    return await populateProduct(product);
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to get product details");
   }
@@ -86,7 +161,8 @@ export async function getProductDetails(productId: string): Promise<ProductRespo
 export async function getProductBySlug(slug: string): Promise<ProductResponse | null> {
   try {
     const product = await Product.findOne({ slug }).lean();
-    return replaceMongoIdInObject(product) as ProductResponse | null;
+    if (!product) return null;
+    return await populateProduct(product);
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to get product by slug");
   }
@@ -95,8 +171,14 @@ export async function getProductBySlug(slug: string): Promise<ProductResponse | 
 // Create new product
 export async function createProductQuery(productData: ProductData): Promise<ProductResponse> {
   try {
-    const product = await Product.create(productData);
-    return JSON.parse(JSON.stringify(product)) as ProductResponse;
+    const product = await Product.create({
+      ...productData,
+      categoryId: new mongoose.Types.ObjectId(productData.categoryId),
+      brandId: new mongoose.Types.ObjectId(productData.brandId),
+      sizeIds: productData.sizeIds.map(id => new mongoose.Types.ObjectId(id)),
+      colorIds: productData.colorIds.map(id => new mongoose.Types.ObjectId(id)),
+    });
+    return await populateProduct(product);
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to create product");
   }
@@ -105,12 +187,29 @@ export async function createProductQuery(productData: ProductData): Promise<Prod
 // Update product
 export async function updateProductQuery(productId: string, productData: Partial<ProductData>): Promise<ProductResponse | null> {
   try {
+    const updateData: any = { ...productData, updated_at: new Date() };
+    
+    if (productData.categoryId) {
+      updateData.categoryId = new mongoose.Types.ObjectId(productData.categoryId);
+    }
+    if (productData.brandId) {
+      updateData.brandId = new mongoose.Types.ObjectId(productData.brandId);
+    }
+    if (productData.sizeIds) {
+      updateData.sizeIds = productData.sizeIds.map(id => new mongoose.Types.ObjectId(id));
+    }
+    if (productData.colorIds) {
+      updateData.colorIds = productData.colorIds.map(id => new mongoose.Types.ObjectId(id));
+    }
+    
     const product = await Product.findByIdAndUpdate(
       productId,
-      { ...productData, updated_at: new Date() },
+      updateData,
       { new: true }
     ).lean();
-    return replaceMongoIdInObject(product) as ProductResponse | null;
+    
+    if (!product) return null;
+    return await populateProduct(product);
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to update product");
   }
@@ -134,16 +233,33 @@ export async function toggleProductStatusQuery(productId: string, active: boolea
       { active, updated_at: new Date() },
       { new: true }
     ).lean();
-    return replaceMongoIdInObject(product) as ProductResponse | null;
+    if (!product) return null;
+    return await populateProduct(product);
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to toggle product status");
   }
 }
 
+
 // Get products by category
 export async function getProductsByCategory(category: string): Promise<ProductResponse[]> {
   try {
-    const products = await Product.find({ category, active: true }).lean();
+    const categoryDoc = await Category.findOne({
+      slug: category,
+      active: true,
+    }).lean();
+
+    // ❗ handle not found case
+    if (!categoryDoc) {
+      throw new Error("Category not found");
+    }
+
+    const products = await Product.find({
+      categoryId: new mongoose.Types.ObjectId(categoryDoc._id),
+      active: true,
+    }).lean();
+    console.log(products);
+    
     return replaceMongoIdInArray(products) as ProductResponse[];
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : "Failed to get products by category");
@@ -194,23 +310,52 @@ export async function getFeaturedProducts(limit: number = 10): Promise<ProductRe
 export async function getCategoriesWiseProducts(): Promise<CategoryWithProducts[]> {
   try {
     const categories = await getCategories();
-    
+
     const categoriesWithProducts = await Promise.all(
       categories.map(async (category) => {
         const products = await Product.find({
-          category: { $regex: new RegExp(`^${category.name}$`, 'i') },
-          active: true
+          categoryId: category.id, // ✅ no toString()
+          active: true,
         }).lean();
-        
+
         return {
           ...category,
           products: replaceMongoIdInArray(products) as ProductResponse[],
         };
       })
     );
-    
+
     return categoriesWithProducts;
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Failed to get categories wise products");
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to get categories wise products"
+    );
+  }
+}
+
+
+// Get category related products
+export async function getCategoryRelatedProducts(category: string): Promise<ProductResponse[]> {
+  try {
+    const categoryDoc = await Category.findOne({
+      _id: new mongoose.Types.ObjectId(category),
+      active: true,
+    }).lean();
+
+    // ❗ handle not found case
+    if (!categoryDoc) {
+      throw new Error("Category not found");
+    }
+
+    const products = await Product.find({
+      categoryId: new mongoose.Types.ObjectId(categoryDoc._id),
+      active: true,
+    }).lean();
+    
+    return replaceMongoIdInArray(products) as ProductResponse[];
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : "Failed to get products by category");
   }
 }

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { taka } from "@/utils/currency";
+import { toBengaliNumber } from "@/utils/helpers";
 
 function StarRating({ rating, count }: { rating: number; count?: number }) {
   return (
@@ -42,10 +43,21 @@ function StarRating({ rating, count }: { rating: number; count?: number }) {
 }
 
 export default function ProductDetail({ product }) {
-  const { addToCart, addToWishlist } = useApp();
-
-  const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || "");
-  const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || "");
+  const { isBn, addToCart, addToWishlist } = useApp();
+  
+  // Fix: Initialize selectedColor as an array [name, nameBn, hex]
+  const [selectedColor, setSelectedColor] = useState(() => {
+    if (product.colorNames && product.colorNames.length > 0) {
+      return [
+        product.colorNames[0],
+        product.colorNamesBn?.[0] || product.colorNames[0],
+        product.colorHexes?.[0] || "#000000"
+      ];
+    }
+    return ["", "", ""];
+  });
+  
+  const [selectedSize, setSelectedSize] = useState(product.sizeNames?.[0] || "");
   const [qty, setQty] = useState(1);
   const [activeThumb, setActiveThumb] = useState(0);
   const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 });
@@ -53,7 +65,9 @@ export default function ProductDetail({ product }) {
   const [zoomLevel, setZoomLevel] = useState(200);
   const imageContainerRef = useRef(null);
 
-  const productImages = [product.image, product.hoverImage].filter(Boolean);
+  const productImages = [product.video, product.image, ...(product.multiImages || [])].filter(
+    Boolean,
+  );
 
   const goSlide = (direction: "prev" | "next") => {
     setActiveThumb((prev) => {
@@ -91,26 +105,24 @@ export default function ProductDetail({ product }) {
     const productWithOptions = {
       ...product,
       quantity: qty,
-      selectedColor: selectedColor,
+      selectedColor: selectedColor[0], // Store just the color name
+      selectedColorBn: selectedColor[1], // Store just the color name
+      selectedColorHex: selectedColor[2], // Store hex if needed
       selectedSize: selectedSize,
-      // Generate a unique ID for this variant (optional but recommended)
-      // This ensures different color/size combinations are treated as separate cart items
-      id: `${product.id}-${selectedColor}-${selectedSize}`,
-      originalId: product.id, // Keep track of original product ID
+      // Generate a unique ID for this variant
+      id: `${product.id}-${selectedColor[0]}-${selectedSize}`,
+      originalId: product.id,
     };
-    
+
     addToCart(productWithOptions);
-    
-    // Optional: Show success message or toast notification
-    console.log("Added to cart:", {
-      name: product.name,
-      color: selectedColor,
-      size: selectedSize,
-      quantity: qty
-    });
   };
 
   const currentImage = productImages[activeThumb] || product.image;
+
+  // Helper function to check if a color is selected
+  const isColorSelected = (colorHex) => {
+    return selectedColor[2] === colorHex;
+  };
 
   return (
     <div className="flex gap-6">
@@ -127,7 +139,7 @@ export default function ProductDetail({ product }) {
               <ZoomOut size={14} />
             </button>
             <span className="text-xs font-medium text-gray-700 min-w-[45px] text-center">
-              {zoomLevel}%
+              {isBn ? toBengaliNumber(zoomLevel.toString()) : zoomLevel}%
             </span>
             <button
               onClick={handleZoomIn}
@@ -167,13 +179,13 @@ export default function ProductDetail({ product }) {
 
           {showZoom && zoomLevel > 100 && (
             <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-              {zoomLevel}% zoom
+              {isBn ? toBengaliNumber(zoomLevel.toString()) : zoomLevel}% zoom
             </div>
           )}
 
           <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
             <span className="bg-[#095059] text-white text-[10px] font-bold px-2 py-0.5 rounded">
-              SALE
+              {isBn ? 'বিক্রয়' : 'SALE'}
             </span>
           </div>
 
@@ -231,42 +243,49 @@ export default function ProductDetail({ product }) {
       <div className="flex-1 min-w-0">
         <div className="mb-3">
           <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-2">
-            {product.name}
+            {isBn ? product.nameBn : product.name}
           </h1>
           <div className="text-sm text-gray-600 space-y-1 mb-4 pl-4">
-            {product.description}
+            {isBn ? product.descriptionBn : product.description}
           </div>
         </div>
 
         <div className="flex items-baseline gap-3 mb-3">
           <span className="text-3xl font-black text-gray-900">
-            {taka(product.price)}
+            {isBn ? toBengaliNumber(taka(product.price).toString()) : taka(product.price)}
           </span>
           {product.originalPrice && product.originalPrice > product.price && (
             <span className="text-lg text-gray-500 line-through">
-              {taka(product.originalPrice)}
+              {isBn ? toBengaliNumber(taka(product.originalPrice).toString()) : taka(product.originalPrice)}
             </span>
           )}
         </div>
 
         {/* Color Selection */}
-        {product.colors && product.colors.length > 0 && (
+        {product.colorHexes && product.colorHexes.length > 0 && (
           <div className="mb-4">
             <p className="text-sm font-semibold text-gray-800 mb-2">
-              Color: <span className="text-orange-600 font-normal">{selectedColor}</span>
+              {isBn ? 'রং' : 'Color'}:{" "}
+              <span className="text-orange-600 font-normal">
+                {isBn ? selectedColor[1] : selectedColor[0]}
+              </span>
             </p>
             <div className="flex items-center gap-2">
-              {product.colors.map((color, i) => (
+              {product.colorHexes.map((colorHex, i) => (
                 <button
                   key={i}
-                  onClick={() => setSelectedColor(color)}
-                  title={color}
+                  onClick={() => setSelectedColor([
+                    product.colorNames[i],
+                    product.colorNamesBn?.[i] || product.colorNames[i],
+                    colorHex
+                  ])}
+                  title={product.colorNames[i]}
                   className={`w-8 h-8 rounded-full border-2 transition-all ${
-                    selectedColor === color
+                    isColorSelected(colorHex)
                       ? "border-orange-500 scale-110 shadow"
                       : "border-gray-300 hover:border-gray-500"
                   }`}
-                  style={{ backgroundColor: color.toLowerCase() }}
+                  style={{ backgroundColor: colorHex.toLowerCase() }}
                 />
               ))}
             </div>
@@ -274,15 +293,18 @@ export default function ProductDetail({ product }) {
         )}
 
         {/* Size Selection */}
-        {product.sizes && product.sizes.length > 0 && (
+        {product.sizeNames && product.sizeNames.length > 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-semibold text-gray-800">
-                Size: <span className="text-orange-600 font-normal">{selectedSize}</span>
+                {isBn ? 'সাইজ' : 'Size'}:{" "}
+                <span className="text-orange-600 font-normal">
+                  {selectedSize}
+                </span>
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {product.sizes.map((size) => (
+              {product.sizeNames.map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
@@ -308,7 +330,7 @@ export default function ProductDetail({ product }) {
             >
               <Minus size={14} />
             </button>
-            <span className="px-5 py-2 text-sm font-semibold">{qty}</span>
+            <span className="px-5 py-2 text-sm font-semibold">{isBn ? toBengaliNumber(qty.toString()) : qty}</span>
             <button
               onClick={() => setQty(qty + 1)}
               className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 transition-colors border-l border-gray-300"
@@ -320,12 +342,12 @@ export default function ProductDetail({ product }) {
             onClick={handleAddToCart}
             className="flex-1 bg-[#095059] hover:bg-[#0e6e78] text-white font-bold py-2.5 rounded transition-colors text-sm"
           >
-            Add To Cart
+            {isBn ? 'কার্টে যোগ করুন' : 'Add To Cart'}
           </button>
         </div>
 
         <button className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2.5 rounded transition-colors text-sm mb-4">
-          Buy Now
+          {isBn ? 'এখনই কিনুন' : 'Buy Now'}
         </button>
       </div>
 
@@ -341,28 +363,28 @@ export default function ProductDetail({ product }) {
             </tr>
             <tr className="border-t border-gray-100">
               <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                Brand
+                {isBn ? 'ব্র্যান্ড' : 'Brand'}
               </th>
-              <td className="py-2 px-3">{product.brand}</td>
+              <td className="py-2 px-3">{isBn ? product.brandNameBn : product.brandName}</td>
             </tr>
             <tr className="border-t border-gray-100">
               <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                Category
+                {isBn ? 'বিভাগ' : 'Category'}
               </th>
-              <td className="py-2 px-3">{product.category}</td>
+              <td className="py-2 px-3">{isBn ? product.categoryNameBn : product.categoryName}</td>
             </tr>
-            {selectedColor && (
+            {selectedColor[0] && (
               <tr className="border-t border-gray-100">
                 <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                  Selected Color
+                  {isBn ? 'নির্বাচিত রং' : 'Selected Color'}
                 </th>
                 <td className="py-2 px-3">
                   <div className="flex items-center gap-2">
-                    <div 
-                      className="w-4 h-4 rounded-full" 
-                      style={{ backgroundColor: selectedColor.toLowerCase() }}
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: selectedColor[2].toLowerCase() }}
                     />
-                    <span>{selectedColor}</span>
+                    <span>{isBn ? selectedColor[1] : selectedColor[0]}</span>
                   </div>
                 </td>
               </tr>
@@ -370,7 +392,7 @@ export default function ProductDetail({ product }) {
             {selectedSize && (
               <tr className="border-t border-gray-100">
                 <th className="py-2 px-3 font-medium text-gray-800 w-[100px]">
-                  Selected Size
+                  {isBn ? 'নির্বাচিত সাইজ' : 'Selected Size'}
                 </th>
                 <td className="py-2 px-3 font-semibold">{selectedSize}</td>
               </tr>

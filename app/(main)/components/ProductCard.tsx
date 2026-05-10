@@ -31,14 +31,14 @@ export const ProductCard = ({ product }) => {
         )}
 
         <div className="relative h-[260px] sm:h-[380px] md:h-[240px] lg:h-[350px] overflow-hidden bg-[#fafafa]">
-          <Link href={`/product/${product.id}`} className="absolute inset-0 h-full w-full">
+          <Link href={`/product/${product.slug}`} className="absolute inset-0 h-full w-full">
             <img
               src={product.image}
               alt={product.name}
               className="absolute inset-0 h-full w-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:opacity-0"
             />
             <img
-              src={product.hoverImage || product.image}
+              src={product.multiImages[0] || product.image}
               alt={`${product.name} alt`}
               className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-2000 group-hover:scale-110 group-hover:opacity-100"
             />
@@ -46,7 +46,7 @@ export const ProductCard = ({ product }) => {
         </div>
 
         <div className="px-3 pb-3 pt-3 text-center">
-          <Link href={`/product/${product.id}`} className="mx-auto text-[15px] line-clamp-2 font-semibold hover:text-[#095059] transition-all duration-300 leading-5 text-slate-700">
+          <Link href={`/product/${product.slug}`} className="mx-auto text-[15px] line-clamp-2 font-semibold hover:text-[#095059] transition-all duration-300 leading-5 text-slate-700">
             {isBn ? product.nameBn : product.name}
           </Link>
           <div className="mt-2 flex items-center justify-center gap-1.5">
