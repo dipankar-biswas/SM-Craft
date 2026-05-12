@@ -1,7 +1,7 @@
 
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { SimpleLoginForm } from "./components/LoginForm";
+import { FormSet } from "./components/FormSet";
 
 const LoginPage = async () => {
   const session = await auth();
@@ -11,7 +11,7 @@ const LoginPage = async () => {
 
   return (
     <>
-      <SimpleLoginForm />
+      <FormSet />
     </>
   );
 };

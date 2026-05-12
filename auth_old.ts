@@ -7,7 +7,6 @@ import bcrypt from "bcryptjs";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   providers: [
     CredentialsProvider({
@@ -18,9 +17,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const user = await User.findOne({ email: credentials.email });
           // console.log(user);
-          if (!user) {
-            throw new Error("User not found");
-          }
 
           if (user) {
             const isMatch = await bcrypt.compare(
@@ -29,21 +25,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             );
             if (isMatch) {
               // console.log("Password Matched");
-              // Update last login
-              user.lastLogin = new Date();
-              await user.save();
-              
-              // Return user object
-              return {
-                id: user._id.toString(),
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                lastLogin: user.lastLogin,
-              };
+              return user;
             } else {
               // console.error("Password Mismatch");
-              throw new Error("Invalid password");
+              throw new Error("Check Your Password");
             }
           } else {
             // console.error("User not found!");

@@ -1,28 +1,47 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
 
-const userSchema = new Schema(
+const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+      minlength: [2, "Name must be at least 2 characters"],
+      maxlength: [50, "Name must be less than 50 characters"],
+    },
     email: {
       type: String,
-      required: true,
+      required: [true, "Email is required"],
       unique: true,
       lowercase: true,
       trim: true,
+      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
-    password: { type: String, required: true },
-
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: [6, "Password must be at least 6 characters"],
+    },
     role: {
       type: String,
-      enum: ["admin", "agent", "user"],
+      enum: ["user", "admin", "moderator"],
       default: "user",
     },
-    profilePicture: { required: false, type: String },
-
-    status: {
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
+    resetPasswordToken: {
       type: String,
-      enum: ["active", "deactive"],
-      default: "active",
+      select: false,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      select: false,
     },
   },
   {
@@ -33,5 +52,18 @@ const userSchema = new Schema(
   }
 );
 
-// ✅ Prevent OverwriteModelError in hot-reloading (Next.js dev)
+// Remove password when converting to JSON
+userSchema.set("toJSON", {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.resetPasswordToken;
+    delete ret.resetPasswordExpires;
+    return ret;
+  },
+});
+
+// Index for faster queries
+userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
+
 export const User = mongoose.models.User || mongoose.model("User", userSchema);
