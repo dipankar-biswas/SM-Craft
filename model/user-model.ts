@@ -6,8 +6,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Name is required"],
       trim: true,
-      minlength: [2, "Name must be at least 2 characters"],
-      maxlength: [50, "Name must be less than 50 characters"],
     },
     email: {
       type: String,
@@ -15,12 +13,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email"],
     },
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters"],
     },
     role: {
       type: String,
@@ -29,41 +25,45 @@ const userSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: true,
+      default: false, // False until email verified
+    },
+    isVerified: {
+      type: Boolean,
+      default: false, // Email verification status
+    },
+    verificationCode: {
+      type: String,
+      select: false,
+    },
+    verificationCodeExpires: {
+      type: Date,
+      select: false,
     },
     lastLogin: {
       type: Date,
       default: null,
     },
-    resetPasswordToken: {
-      type: String,
-      select: false,
-    },
-    resetPasswordExpires: {
+    sessionExpires: {
       type: Date,
-      select: false,
+      default: null,
     },
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
   {
-    timestamps: {
-      createdAt: "created_at",
-      updatedAt: "updated_at",
-    },
+    timestamps: true,
   }
 );
 
-// Remove password when converting to JSON
-userSchema.set("toJSON", {
-  transform: (doc, ret) => {
-    delete ret.password;
-    delete ret.resetPasswordToken;
-    delete ret.resetPasswordExpires;
-    return ret;
-  },
-});
+// Remove sensitive data
+userSchema.methods.toJSON = function() {
+  const obj = this.toObject();
+  delete obj.password;
+  delete obj.verificationCode;
+  delete obj.verificationCodeExpires;
+  delete obj.resetPasswordToken;
+  delete obj.resetPasswordExpires;
+  return obj;
+};
 
-// Index for faster queries
-userSchema.index({ email: 1 });
-userSchema.index({ role: 1 });
-
-export const User = mongoose.models.User || mongoose.model("User", userSchema);
+export default mongoose.models.User || mongoose.model("User", userSchema);

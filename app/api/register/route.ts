@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { sendRegistrationEmail, verifyEmailConnection } from "@/lib/email";
-import { User } from "@/model/user-model";
+import User from "@/model/user-model";
+import { sendVerificationEmail } from "@/lib/email";
 import { dbConnect } from "@/service/mongo";
+
+// Generate 6-digit OTP
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export async function POST(request) {
   try {
@@ -42,54 +47,63 @@ export async function POST(request) {
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
+      if (!existingUser.isVerified) {
+        // User exists but not verified, resend OTP
+        const otp = generateOTP();
+        existingUser.verificationCode = otp;
+        existingUser.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        await existingUser.save();
+        
+        // Send verification email
+        await sendVerificationEmail(existingUser.email, otp, existingUser.name);
+        
+        return NextResponse.json({
+          message: "Verification code resent to your email",
+          email: existingUser.email,
+          requiresVerification: true
+        }, { status: 200 });
+      }
+      
       return NextResponse.json(
-        { error: "User with this email already exists" },
+        { error: "User with this email already exists and is verified" },
         { status: 409 }
       );
     }
     
+    // Generate OTP
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Create new user
+    // Create new user (unverified)
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       role: "user",
       isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      isVerified: false,
+      verificationCode: otp,
+      verificationCodeExpires: otpExpires,
     });
     
     console.log("User created successfully:", user._id);
     
-    // Send welcome email (don't await - let it run in background)
-    sendRegistrationEmail(user.email, user.name)
-      .then(result => {
-        if (result.success) {
-          console.log("Welcome email sent to:", user.email);
-        } else {
-          console.error("Failed to send welcome email:", result.error);
-        }
-      })
-      .catch(error => {
-        console.error("Email sending error:", error);
-      });
+    // Send verification email
+    const emailResult = await sendVerificationEmail(user.email, otp, user.name);
     
-    // Return success response
-    return NextResponse.json(
-      {
-        message: "User registered successfully. Welcome email sent!",
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      },
-      { status: 201 }
-    );
+    if (!emailResult.success) {
+      console.error("Failed to send email:", emailResult.error);
+    }
+    
+    // Return response
+    return NextResponse.json({
+      message: "Registration successful! Please verify your email with the OTP sent.",
+      email: user.email,
+      requiresVerification: true
+    }, { status: 201 });
     
   } catch (error) {
     console.error("Registration error details:", error);
