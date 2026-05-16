@@ -288,7 +288,7 @@ export async function sendPasswordResetEmail(userEmail, resetToken, userName) {
 }
 
 // Send verification email with OTP
-export async function sendVerificationEmail(userEmail, otp, userName) {
+export async function sendVerificationEmail(userEmail, otp, userName, verificationUrl) {
   try {
     const mailOptions = {
       from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM}>`,
@@ -343,6 +343,16 @@ export async function sendVerificationEmail(userEmail, otp, userName) {
               color: #059669;
               font-family: monospace;
             }
+            .verify-button {
+              display: inline-block;
+              padding: 14px 30px;
+              background: linear-gradient(135deg, #10b981 0%, #0d9488 100%);
+              color: white;
+              text-decoration: none;
+              border-radius: 25px;
+              margin: 20px 0;
+              font-weight: bold;
+            }
             .timer {
               color: #dc2626;
               font-weight: bold;
@@ -353,14 +363,26 @@ export async function sendVerificationEmail(userEmail, otp, userName) {
               font-size: 12px;
               color: #666;
             }
-            .button {
-              display: inline-block;
-              padding: 12px 30px;
-              background: linear-gradient(135deg, #10b981 0%, #0d9488 100%);
-              color: white;
-              text-decoration: none;
-              border-radius: 25px;
+            .divider {
+              text-align: center;
               margin: 20px 0;
+              position: relative;
+            }
+            .divider::before {
+              content: '';
+              position: absolute;
+              top: 50%;
+              left: 0;
+              right: 0;
+              height: 1px;
+              background: #e5e7eb;
+            }
+            .divider span {
+              background: white;
+              padding: 0 10px;
+              position: relative;
+              color: #9ca3af;
+              font-size: 12px;
             }
           </style>
         </head>
@@ -371,15 +393,27 @@ export async function sendVerificationEmail(userEmail, otp, userName) {
             </div>
             <div class="content">
               <p>Hello ${userName || "User"}!</p>
-              <p>Thank you for registering with SlotsBytes. Please use the verification code below to complete your registration:</p>
+              <p>Thank you for registering with SlotsBytes. Please verify your email address to activate your account.</p>
+              
+              <center>
+                <a href="${verificationUrl}" class="verify-button">
+                  Verify Email Address →
+                </a>
+              </center>
+              
+              <div class="divider">
+                <span>OR</span>
+              </div>
               
               <div class="otp-box">
-                <p style="margin-bottom: 10px; color: #065f46;">Your Verification Code:</p>
+                <p style="margin-bottom: 10px; color: #065f46;">Enter this verification code manually:</p>
                 <div class="otp-code">${otp}</div>
                 <p style="margin-top: 10px; font-size: 14px;">This code will expire in <span class="timer">10 minutes</span></p>
               </div>
               
-              <p>If you didn't request this, please ignore this email.</p>
+              <p style="font-size: 14px; color: #6b7280;">
+                If you didn't create an account with SlotsBytes, please ignore this email.
+              </p>
               
               <p>Best regards,<br>
               <strong>The SlotsBytes Team</strong></p>
@@ -397,13 +431,16 @@ export async function sendVerificationEmail(userEmail, otp, userName) {
         
         Hello ${userName || "User"}!
         
-        Thank you for registering with SlotsBytes. Please use the verification code below to complete your registration:
+        Thank you for registering with SlotsBytes. Please verify your email address to activate your account.
         
-        VERIFICATION CODE: ${otp}
+        Click this link to verify your email:
+        ${verificationUrl}
+        
+        Or enter this verification code manually: ${otp}
         
         This code will expire in 10 minutes.
         
-        If you didn't request this, please ignore this email.
+        If you didn't create an account with SlotsBytes, please ignore this email.
         
         Best regards,
         The SlotsBytes Team

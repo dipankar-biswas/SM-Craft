@@ -1,0 +1,704 @@
+// app/checkout/page.tsx (Fixed Version)
+"use client";
+
+import { taka } from "@/utils/currency";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useApp } from "../context/AppContext";
+import { useRouter } from "next/navigation";
+import { toBengaliNumber } from "@/utils/helpers";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { createCheckoutSession } from "@/app/actions/stripe";
+
+export default function CheckoutPage() {
+  // ✅ Changed from PageSet to default export
+  const { isBn, cart, clearCart } = useApp();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [redirected, setRedirected] = useState(false);
+
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+
+  const [formData, setFormData] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    paymentMethod: "cash_on_delivery",
+    specialInstructions: "",
+  });
+
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Check if user is logged in before showing checkout page
+  useEffect(() => {
+    if (status === "unauthenticated" && !redirected && cart.length > 0) {
+      setRedirected(true);
+
+      sessionStorage.setItem("checkoutFormData", JSON.stringify(formData));
+      sessionStorage.setItem("pendingCheckout", "true");
+      sessionStorage.setItem("pendingPaymentMethod", formData.paymentMethod);
+
+      toast.info(
+        isBn ? "অর্ডার করতে লগইন প্রয়োজন" : "Login required to place order",
+      );
+      router.push(
+        `/admin/login?callbackUrl=${encodeURIComponent("/checkout")}`,
+      );
+    }
+  }, [status, redirected, cart.length]);
+
+  // Restore saved form data after login
+  useEffect(() => {
+    if (status === "authenticated") {
+      const savedFormData = sessionStorage.getItem("checkoutFormData");
+      const pendingCheckout = sessionStorage.getItem("pendingCheckout");
+      const savedPaymentMethod = sessionStorage.getItem("pendingPaymentMethod");
+
+      if (pendingCheckout === "true" && savedFormData) {
+        const parsedData = JSON.parse(savedFormData);
+        setFormData(parsedData);
+
+        if (savedPaymentMethod) {
+          setFormData((prev) => ({
+            ...prev,
+            paymentMethod: savedPaymentMethod,
+          }));
+        }
+
+        sessionStorage.removeItem("checkoutFormData");
+        sessionStorage.removeItem("pendingCheckout");
+        sessionStorage.removeItem("pendingPaymentMethod");
+
+        toast.success(
+          isBn
+            ? "স্বাগতম! এখন অর্ডার সম্পন্ন করুন"
+            : "Welcome back! Complete your order",
+        );
+      }
+    }
+  }, [status]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Check authentication first
+    if (status !== "authenticated") {
+      sessionStorage.setItem("checkoutFormData", JSON.stringify(formData));
+      sessionStorage.setItem("pendingCheckout", "true");
+      sessionStorage.setItem("pendingPaymentMethod", formData.paymentMethod);
+
+      toast.error(
+        isBn ? "অর্ডার করতে লগইন প্রয়োজন" : "Login required to place order",
+      );
+      router.push(
+        `/admin/login?callbackUrl=${encodeURIComponent("/checkout")}`,
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    // Validate form
+    if (!formData.name || !formData.address || !formData.phone) {
+      setError(
+        isBn
+          ? "দয়া করে নাম, ঠিকানা এবং মোবাইল নম্বর দিন"
+          : "Please provide name, address and mobile number",
+      );
+      setLoading(false);
+      return;
+    }
+
+    // Prepare common order data
+    const orderData = {
+      customerName: formData.name,
+      customerAddress: formData.address,
+      customerPhone: formData.phone,
+      items: cart.map((item) => ({
+        productId: item.id,
+        name: item.name,
+        nameBn: item.nameBn || item.name,
+        price: item.price,
+        quantity: item.quantity,
+        selectedSize: item.selectedSize,
+        selectedColor: item.selectedColor,
+        selectedColorBn: item.selectedColorBn,
+        selectedColorHex: item.selectedColorHex,
+        image: item.image,
+      })),
+      subtotal: subtotal,
+      deliveryCharge: 0,
+      total: subtotal,
+      specialInstructions: formData.specialInstructions || null,
+    };
+
+    // Route to appropriate payment method
+    if (formData.paymentMethod === "online") {
+      await handleStripeCheckout(orderData);
+    } else {
+      await handleCashOnDelivery(orderData);
+    }
+  };
+
+  const handleCashOnDelivery = async (orderData: any) => {
+    try {
+      const finalOrderData = {
+        ...orderData,
+        paymentMethod: "cash_on_delivery",
+        paymentStatus: "pending",
+        orderStatus: "pending",
+        userId: session?.user?.id,
+      };
+
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(finalOrderData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        clearCart();
+        toast.success(
+          isBn ? "অর্ডার সফল হয়েছে!" : "Order placed successfully!",
+        );
+        router.push(`/order-success?orderId=${data.order.orderId}`);
+      } else {
+        setError(
+          data.error ||
+            (isBn ? "অর্ডার করতে ব্যর্থ হয়েছে" : "Failed to place order"),
+        );
+        toast.error(
+          data.error ||
+            (isBn ? "অর্ডার করতে ব্যর্থ হয়েছে" : "Failed to place order"),
+        );
+      }
+    } catch (error) {
+      console.error("Order submission error:", error);
+      setError(
+        isBn
+          ? "নেটওয়ার্ক সমস্যা। দয়া করে আবার চেষ্টা করুন।"
+          : "Network error. Please try again.",
+      );
+      toast.error(isBn ? "নেটওয়ার্ক সমস্যা" : "Network error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStripeCheckout = async (orderData: any) => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const finalOrderData = {
+        ...orderData,
+        paymentMethod: "stripe",
+      };
+
+      console.log("Calling createCheckoutSession..."); // Debug
+
+      const result = await createCheckoutSession(finalOrderData);
+
+      console.log("Stripe result:", result); // Debug
+
+      if (result.error === "unauthorized") {
+        sessionStorage.setItem("checkoutFormData", JSON.stringify(formData));
+        sessionStorage.setItem("pendingCheckout", "true");
+        router.push(
+          `/admin/login?callbackUrl=${encodeURIComponent("/checkout")}`,
+        );
+        toast.info(
+          isBn
+            ? "অনলাইন পেমেন্টের জন্য লগইন প্রয়োজন"
+            : "Login required for online payment",
+        );
+        setLoading(false);
+      } else if (result.success && result.url) {
+        // ✅ Validate URL before redirect
+        try {
+          const url = new URL(result.url);
+          console.log("Valid URL:", url.toString());
+
+          // Small delay to show success message
+          toast.success(
+            isBn
+              ? "পেমেন্ট পেজে রিডাইরেক্ট করা হচ্ছে..."
+              : "Redirecting to payment page...",
+          );
+
+          setTimeout(() => {
+            window.location.href = result.url;
+          }, 500);
+        } catch (urlError) {
+          console.error("Invalid URL:", result.url);
+          setError(isBn ? "পেমেন্ট লিংকটি সঠিক নয়" : "Invalid payment link");
+          toast.error(
+            isBn ? "পেমেন্ট লিংকটি সঠিক নয়" : "Invalid payment link",
+          );
+          setLoading(false);
+        }
+      } else {
+        const errorMsg =
+          result.message ||
+          (isBn
+            ? "পেমেন্ট প্রক্রিয়া করতে ব্যর্থ হয়েছে"
+            : "Failed to process payment");
+        setError(errorMsg);
+        toast.error(errorMsg);
+        setLoading(false);
+      }
+    } catch (error: any) {
+      console.error("Stripe checkout error:", error);
+      const errorMsg = isBn
+        ? "পেমেন্ট গেটওয়েতে সমস্যা হয়েছে"
+        : "Payment gateway error";
+      setError(errorMsg);
+      toast.error(errorMsg);
+      setLoading(false);
+    }
+  };
+
+  // Show loading while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0f5c54] mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {isBn ? "লোড হচ্ছে..." : "Loading..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login required message (will auto-redirect)
+  if (status === "unauthenticated" && cart.length > 0) {
+    return (
+      <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            {isBn ? "লগইন প্রয়োজন" : "Login Required"}
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {isBn
+              ? "অর্ডার করতে অনুগ্রহ করে লগইন করুন"
+              : "Please login to place your order"}
+          </p>
+          <div className="animate-pulse">
+            <p className="text-sm text-gray-500">
+              {isBn ? "রিডাইরেক্ট হচ্ছে..." : "Redirecting..."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show empty cart message
+  if (cart.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#f7f5f2] flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">🛒</div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            {isBn ? "কার্ট খালি" : "Cart is Empty"}
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {isBn
+              ? "দয়া করে কিছু পণ্য যোগ করুন"
+              : "Please add some products to your cart"}
+          </p>
+          <Link
+            href="/"
+            className="bg-[#0f5c54] text-white px-6 py-2 rounded-lg inline-block"
+          >
+            {isBn ? "শপিং শুরু করুন" : "Start Shopping"}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f7f5f2] font-['Inter',sans-serif] py-6 md:py-10">
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Welcome message for logged in user */}
+        {session && (
+          <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <i className="fas fa-check-circle text-green-500 text-xl mr-3"></i>
+                <div>
+                  <p className="text-green-700 font-medium">
+                    {isBn ? "আপনি লগইন করেছেন" : "You are logged in"}
+                  </p>
+                  <p className="text-green-600 text-sm">{session.user.email}</p>
+                </div>
+              </div>
+              <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                {isBn ? "অর্ডার করতে প্রস্তুত" : "Ready to order"}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* LEFT COLUMN: Billing Information */}
+            <div className="space-y-6">
+              {/* Customer Support Info */}
+              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100 flex items-center gap-3 text-sm text-gray-500">
+                <i className="fas fa-headset text-2xl text-[#d4a373]"></i>
+                <div>
+                  {isBn
+                    ? "অর্ডার সংক্রান্ত যেকোনো সাহায্যে কল করুন"
+                    : "Call for any help with your order."}{" "}
+                  <strong className="text-[#0f5c54]">
+                    {isBn ? toBengaliNumber("01741571104") : "01741571104"}
+                  </strong>{" "}
+                  {isBn ? "(সকাল ১০টা - রাত ৯টা)" : "(10am - 9pm)"}
+                </div>
+              </div>
+
+              {/* Billing Form Card */}
+              <div className="bg-white rounded-2xl shadow-md p-5 md:p-6 border border-gray-100">
+                <div className="flex items-center gap-2 border-b border-amber-200 pb-3 mb-5">
+                  <i className="fas fa-map-marked-alt text-[#d4a373] text-xl"></i>
+                  <h2 className="text-xl md:text-2xl font-bold text-[#2c3e2f] font-serif tracking-tight">
+                    {isBn
+                      ? "ঠিকানা ও ডেলিভারি তথ্য"
+                      : "Address and delivery information"}
+                  </h2>
+                </div>
+
+                {error && (
+                  <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                    <i className="fas fa-exclamation-circle mr-2"></i>
+                    {error}
+                  </div>
+                )}
+
+                <p className="text-gray-500 text-sm mb-5 bg-amber-50 p-3 rounded-lg border-l-4 border-amber-400">
+                  <i className="fas fa-info-circle text-amber-500 mr-2"></i>
+                  {isBn
+                    ? "অর্ডার করার পর আমাদের প্রতিনিধি আপনার সাথে যোগাযোগ করবেন। সঠিক ঠিকানা ও মোবাইল নম্বর দিন।"
+                    : "After placing your order, our representative will contact you. Please provide your correct address and mobile number."}
+                </p>
+
+                <div className="space-y-5">
+                  {/* Full Name */}
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
+                      {isBn ? "আপনার নাম" : "Your name"}:{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder={
+                        isBn
+                          ? "আপনার সম্পূর্ণ নাম লিখুন"
+                          : "Enter your full name."
+                      }
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+
+                  {/* Complete Address */}
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
+                      {isBn ? "আপনার ঠিকানা" : "Your address"}:{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      rows={2}
+                      placeholder={
+                        isBn
+                          ? "বাড়ির নম্বর, রাস্তা, এলাকা, জেলা"
+                          : "House number, street, area, district"
+                      }
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
+                      required
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      <i className="fas fa-location-dot mr-1"></i>{" "}
+                      {isBn
+                        ? "ডেলিভারি ঠিকানা সঠিকভাবে দিন"
+                        : "Enter the delivery address correctly."}
+                    </p>
+                  </div>
+
+                  {/* Mobile Number */}
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
+                      {isBn ? "মোবাইল নম্বর" : "Mobile number"}:{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder={isBn ? "০১XXXXXXXXX" : "01XXXXXXXXX"}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
+                      required
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      {isBn
+                        ? "অর্ডার আপডেটের জন্য সক্রিয় নম্বর দিন"
+                        : "Provide active number for order updates"}
+                    </p>
+                  </div>
+
+                  {/* Payment Method */}
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
+                      {isBn ? "পেমেন্ট পদ্ধতি" : "Payment methods"}:{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="paymentMethod"
+                      value={formData.paymentMethod}
+                      onChange={handleInputChange}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
+                      disabled={loading}
+                    >
+                      <option value="cash_on_delivery">
+                        {isBn
+                          ? "ক্যাশ অন ডেলিভারি (নগদ)"
+                          : "Cash on Delivery (Cash)"}
+                      </option>
+                      <option value="online">
+                        {isBn
+                          ? "অনলাইন পেমেন্ট (Stripe)"
+                          : "Online payment (Stripe)"}
+                      </option>
+                    </select>
+
+                    <p className="text-xs text-green-600 mt-1">
+                      <i className="fas fa-check-circle mr-1"></i>
+                      {isBn
+                        ? "আপনি লগইন করেছেন। অর্ডার করতে প্রস্তুত।"
+                        : "You are logged in. Ready to place order."}
+                    </p>
+                  </div>
+
+                  {/* Special Instructions */}
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
+                      {isBn
+                        ? "বিশেষ নির্দেশনা (ঐচ্ছিক)"
+                        : "Special instructions (optional)"}
+                    </label>
+                    <textarea
+                      name="specialInstructions"
+                      value={formData.specialInstructions}
+                      onChange={handleInputChange}
+                      rows={2}
+                      placeholder={
+                        isBn
+                          ? "যেমন: গেট নম্বর, ফ্ল্যাট নম্বর ইত্যাদি"
+                          : "For example: Gate number, flat number etc."
+                      }
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:border-[#d4a373] focus:ring-1 focus:ring-[#d4a373] transition"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl shadow-md border border-gray-100 sticky top-6 overflow-hidden">
+                <div className="bg-gradient-to-r from-[#0a2f2a] to-[#1e4a46] px-5 py-4">
+                  <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                    <i className="fas fa-shopping-bag"></i>{" "}
+                    {isBn ? "অর্ডার সামারি" : "Order Summary"}
+                  </h3>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  {/* Product List */}
+                  <div>
+                    <div className="flex justify-between text-sm font-semibold text-gray-500 border-b border-gray-200 pb-2 mb-2">
+                      <span>{isBn ? "পণ্য" : "Product"}</span>
+                      <span>{isBn ? "সাবটোটাল" : "Subtotal"}</span>
+                    </div>
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {cart.map((product, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between text-gray-700 border-b border-gray-100 pb-2"
+                        >
+                          <div className="flex items-center gap-2 flex-1">
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium">
+                                <Link
+                                  href={`/product/${product.id}`}
+                                  className="hover:text-[#0e6e78] transition-colors"
+                                >
+                                  {isBn ? product.nameBn : product.name}
+                                </Link>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                x{" "}
+                                {isBn
+                                  ? toBengaliNumber(product.quantity.toString())
+                                  : product.quantity}
+                              </div>
+                              {(product.selectedSize ||
+                                product.selectedColor) && (
+                                <div className="flex gap-2 mt-1">
+                                  {product.selectedSize && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-black">
+                                        {isBn ? "সাইজ" : "Size"}:
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        {product.selectedSize}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {product.selectedColor && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-black">
+                                        {isBn ? "রং" : "Color"}:
+                                      </span>
+                                      <span
+                                        className="w-3 h-3 rounded-full border border-gray-300"
+                                        style={{
+                                          backgroundColor:
+                                            product.selectedColorHex,
+                                        }}
+                                      />
+                                      <span className="text-xs text-gray-400">
+                                        {isBn
+                                          ? product.selectedColorBn
+                                          : product.selectedColor}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <span className="font-semibold ml-2">
+                            {isBn
+                              ? toBengaliNumber(
+                                  taka(
+                                    product.price * product.quantity,
+                                  ).toString(),
+                                )
+                              : taka(product.price * product.quantity)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Subtotal and Shipment */}
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
+                    <div className="flex justify-between text-gray-800 font-medium">
+                      <span>
+                        {isBn ? "সব পণ্যের মোট" : "Total of all products"}
+                      </span>
+                      <span>
+                        {isBn
+                          ? toBengaliNumber(taka(subtotal).toString())
+                          : taka(subtotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-gray-600">
+                      <span>
+                        <i className="fas fa-shipping-fast"></i>{" "}
+                        {isBn ? "ডেলিভারি চার্জ" : "Delivery charges"}
+                      </span>
+                      <span>৳ 0</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-[#c15c3a] pt-2 border-t border-dashed border-gray-200 mt-1">
+                      <span>{isBn ? "মোট পরিশোধ্য" : "Total payable"}</span>
+                      <span>
+                        {isBn
+                          ? toBengaliNumber(taka(subtotal).toString())
+                          : taka(subtotal)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Terms Note */}
+                  <div className="text-[10px] text-gray-400 border-t border-gray-100 pt-3 text-center">
+                    <i className="fas fa-shield-alt"></i>{" "}
+                    {isBn
+                      ? "অর্ডার কনফার্ম করার আগে দয়া করে ঠিকানা ও পণ্যের বিবরণ চেক করুন।"
+                      : "Please check the address and product details before confirming the order."}
+                  </div>
+                </div>
+
+                <div className="px-5 pb-5">
+                  <button
+                    type="submit"
+                    disabled={loading || cart.length === 0}
+                    className="w-full bg-[#0f5c54] hover:bg-[#0b4a43] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition duration-200 shadow-md flex items-center justify-center gap-2 text-base"
+                  >
+                    {loading ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin"></i>
+                        {isBn ? "প্রক্রিয়াকরণ..." : "Processing..."}
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-check-circle"></i>
+                        {formData.paymentMethod === "online"
+                          ? isBn
+                            ? "অনলাইন পেমেন্ট করুন"
+                            : "Pay Online"
+                          : isBn
+                            ? "অর্ডার কনফার্ম করুন"
+                            : "Confirm order"}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/service/mongo";
-import { User } from "@/model/user-model";
+import User from "@/model/user-model";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "@/lib/email";
 

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "../globals.css";
+import { SessionProvider } from "next-auth/react";
 import { AppProvider } from "./context/AppContext";
 import LayoutSet from "./layoutset";
 import { dbConnect } from "@/service/mongo";
@@ -15,18 +16,20 @@ export const metadata: Metadata = {
   description: "Best products at best prices",
 };
 
-export default async function RootLayout({children}) {
+export default async function RootLayout({ children }) {
   await dbConnect();
   const categories = await getCategories();
   const settings = await getSettings();
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AppProvider>
-          <LayoutSet categories={categories} settings={settings}>
-            {children}
-          </LayoutSet>
-        </AppProvider>
+        <SessionProvider>
+          <AppProvider>
+            <LayoutSet categories={categories} settings={settings}>
+              {children}
+            </LayoutSet>
+          </AppProvider>
+        </SessionProvider>
       </body>
     </html>
   );

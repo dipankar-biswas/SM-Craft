@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import Link from "next/link";
 
 export function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("dipankarbiswas.smvisabd@gmail.com");
+  const [password, setPassword] = useState("12345678");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -28,6 +28,7 @@ export function LoginForm() {
       const result = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password: password,
+        verifyEmail: false,
         redirect: false,
       });
       

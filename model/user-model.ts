@@ -4,19 +4,19 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Name is required"],
+      required: true,
       trim: true,
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      required: true,
       unique: true,
       lowercase: true,
       trim: true,
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: true,
     },
     role: {
       type: String,
@@ -25,28 +25,17 @@ const userSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: false, // False until email verified
+      default: true,
     },
     isVerified: {
       type: Boolean,
-      default: false, // Email verification status
+      default: false,
     },
-    verificationCode: {
-      type: String,
-      select: false,
-    },
-    verificationCodeExpires: {
-      type: Date,
-      select: false,
-    },
-    lastLogin: {
-      type: Date,
-      default: null,
-    },
-    sessionExpires: {
-      type: Date,
-      default: null,
-    },
+    verificationCode: String,
+    verificationCodeExpires: Date,
+    verificationToken: String,
+    lastLogin: Date,
+    // Password reset fields
     resetPasswordToken: String,
     resetPasswordExpires: Date,
   },
@@ -54,16 +43,5 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-// Remove sensitive data
-userSchema.methods.toJSON = function() {
-  const obj = this.toObject();
-  delete obj.password;
-  delete obj.verificationCode;
-  delete obj.verificationCodeExpires;
-  delete obj.resetPasswordToken;
-  delete obj.resetPasswordExpires;
-  return obj;
-};
 
 export default mongoose.models.User || mongoose.model("User", userSchema);

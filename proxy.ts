@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = [
   "/admin/reset-password",
   "/admin/email-verification",
   "/admin/two-factor-auth",
+  "/admin/verify-email",
   "/product",
   "/products",
   "/product-category",

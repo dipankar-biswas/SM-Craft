@@ -1,4 +1,4 @@
-// app/model/order-model.ts - Fixed version
+// app/models/order-model.ts - Fixed with Stripe support
 import mongoose, { Schema, models } from "mongoose";
 
 export interface OrderItem {
@@ -22,10 +22,12 @@ export interface Order extends Document {
   subtotal: number;
   deliveryCharge: number;
   total: number;
-  paymentMethod: string;
+  paymentMethod: "cash_on_delivery" | "online" | "stripe"; // ✅ Added stripe
   paymentStatus: "pending" | "paid" | "failed";
   orderStatus: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
   specialInstructions?: string;
+  stripeSessionId?: string; // ✅ Added for Stripe tracking
+  paymentIntentId?: string; // ✅ Added for Stripe tracking
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,7 +64,6 @@ const OrderSchema = new Schema(
       type: String, 
       required: true, 
       unique: true,
-      // Remove default here - we'll set it manually
     },
     customerName: { type: String, required: true },
     customerAddress: { type: String, required: true },
@@ -71,36 +72,68 @@ const OrderSchema = new Schema(
     subtotal: { type: Number, required: true },
     deliveryCharge: { type: Number, default: 0 },
     total: { type: Number, required: true },
+    
+    // ✅ FIXED: Added "stripe" to enum
     paymentMethod: { 
       type: String, 
-      enum: ["cash_on_delivery", "online"], 
+      enum: ["cash_on_delivery", "online", "stripe"], // ✅ Added stripe here
+      required: true,
       default: "cash_on_delivery" 
     },
+    
     paymentStatus: { 
       type: String, 
       enum: ["pending", "paid", "failed"], 
       default: "pending" 
     },
+    
     orderStatus: { 
       type: String, 
       enum: ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"], 
       default: "pending" 
     },
+    
     specialInstructions: { type: String, default: null },
+    
+    // ✅ Added Stripe tracking fields
+    stripeSessionId: { 
+      type: String, 
+      sparse: true,
+      index: true 
+    },
+    
+    paymentIntentId: { 
+      type: String, 
+      sparse: true 
+    },
+    
+    // ✅ Added user reference
+    userId: { 
+      type: Schema.Types.ObjectId, 
+      ref: "User",
+      sparse: true 
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// REMOVE any pre-save or pre-validate middleware that might be causing issues
-// If you have any, comment them out:
-
+// Auto-generate orderId before saving
 // OrderSchema.pre('save', function(next) {
 //   if (!this.orderId) {
 //     this.orderId = generateOrderId();
 //   }
 //   next();
 // });
+
+// Create indexes for better query performance
+OrderSchema.index({ orderId: 1 });
+OrderSchema.index({ userId: 1 });
+OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ paymentStatus: 1 });
+OrderSchema.index({ orderStatus: 1 });
+OrderSchema.index({ stripeSessionId: 1 });
+OrderSchema.index({ paymentIntentId: 1 });
 
 export const Order = models.Order || mongoose.model<Order>("Order", OrderSchema);
